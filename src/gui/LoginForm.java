@@ -7,9 +7,11 @@ package gui;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.event.KeyEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -39,10 +41,70 @@ public class LoginForm extends javax.swing.JFrame {
             new SetImage().setImageLabel(imgPass, "image//pass.png");
             imgRole.setSize(20, 20);
             new SetImage().setImageLabel(imgRole, "image//role.png");
+//            btnOK.setSize(30, 30);
+//            new SetImage().setImageButton(btnOK, "image//Login.png");
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, e);
         }
     }
+
+    public void OK() {
+        while (true) {
+            if (txtUser.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Tên tài khoản không được để trống.");
+                txtUser.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (txtPassword.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Mật khẩu không được để trống.");
+                txtPassword.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        if (cbRole.getSelectedIndex() == 1) {
+            try {
+                String query = "select * from Administrators where Username=? and Password=?";
+                ps = con.prepareStatement(query);
+                ps.setString(1, txtUser.getText());
+                ps.setString(2, txtPassword.getText());
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    new AdminForm().setVisible(true);
+                    this.setVisible(false);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
+                    txtUser.grabFocus();
+                }
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến SQL");
+            }
+        }
+        if (cbRole.getSelectedIndex() == 0) {
+            try {
+                String query = "select * from Employees where Username=? and Password=?";
+                ps = con.prepareStatement(query);
+                ps.setString(1, txtUser.getText());
+                ps.setString(2, txtPassword.getText());
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    new BillForm(rs.getString("NameEmp"), rs.getString("Username")).setVisible(true);
+                    this.setVisible(false);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
+                    txtUser.grabFocus();
+                }
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ");
+            }
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -178,15 +240,21 @@ public class LoginForm extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void txtUserKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtUserKeyPressed
-        
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            OK();
+        }
     }//GEN-LAST:event_txtUserKeyPressed
 
     private void txtPasswordKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_txtPasswordKeyPressed
-        
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            OK();
+        }
     }//GEN-LAST:event_txtPasswordKeyPressed
 
     private void cbRoleKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cbRoleKeyPressed
-        
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            OK();
+        }
     }//GEN-LAST:event_cbRoleKeyPressed
 
     /**
