@@ -69,38 +69,50 @@ public class LoginForm extends javax.swing.JFrame {
         }
         if (cbRole.getSelectedIndex() == 1) {
             try {
-                String query = "select * from Administrators where Username=? and Password=?";
+                String query = "select * from Administrators where Username=?";
                 ps = con.prepareStatement(query);
                 ps.setString(1, txtUser.getText());
-                ps.setString(2, txtPassword.getText());
+//                ps.setString(2, txtPassword.getText());
                 rs = ps.executeQuery();
                 if (rs.next()) {
-                    new AdminForm().setVisible(true);
-                    this.setVisible(false);
+                    String pw = rs.getString("Password");
+                    if (edpw.matches(txtPassword.getText(), pw)) {
+                        new AdminForm(txtUser.getText()).setVisible(true);
+                        this.setVisible(false);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
+                        txtUser.grabFocus();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
                     txtUser.grabFocus();
                 }
             } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến SQL");
+                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ.");
             }
         }
         if (cbRole.getSelectedIndex() == 0) {
             try {
-                String query = "select * from Employees where Username=? and Password=?";
+                String query = "select * from Employees where Username=?";
                 ps = con.prepareStatement(query);
                 ps.setString(1, txtUser.getText());
-                ps.setString(2, txtPassword.getText());
+//                ps.setString(2, txtPassword.getText());
                 rs = ps.executeQuery();
                 if (rs.next()) {
-                    new BillForm(rs.getString("NameEmp"), rs.getString("Username")).setVisible(true);
-                    this.setVisible(false);
+                    String pw = rs.getString("Password");
+                    if (edpw.matches(txtPassword.getText(), pw)) {
+                        new BillForm(rs.getString("NameEmp"), rs.getString("Username")).setVisible(true);
+                        this.setVisible(false);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
+                        txtUser.grabFocus();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(null, "Lỗi:: Sai tên tài khoản hoặc mật khẩu.");
                     txtUser.grabFocus();
                 }
             } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ");
+                JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ.");
             }
         }
     }
