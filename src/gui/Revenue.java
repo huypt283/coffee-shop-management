@@ -7,11 +7,23 @@ package gui;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -26,6 +38,8 @@ public class Revenue extends javax.swing.JFrame {
     server.DBHelper db = new server.DBHelper();
     DefaultTableModel tblModel;
     Vector row;
+    SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+    NumberFormat formatter = new DecimalFormat("#,###");
 
     public Revenue() {
         initComponents();
@@ -45,9 +59,35 @@ public class Revenue extends javax.swing.JFrame {
         tblModel.addColumn("Ngày/tháng/năm");
         tblModel.addColumn("Tiền thu (VNĐ)");
         tblRevenue.setModel(tblModel);
+        loadTable();
         btnPrint.setEnabled(false);
     }
-    
+
+    private void loadTable() {
+        try {
+            con = db.getCon();
+            ps = con.prepareStatement("select * from Revenues order by IDRevenue DESC");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                row = new Vector();
+                row.add(rs.getString(1));
+                row.add(rs.getString(2));
+                row.add(formatter.format(rs.getInt(3)));
+                tblModel.addRow(row);
+            }
+            tblRevenue.setModel(tblModel);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        int line = tblRevenue.getRowCount();
+        int tong = 0;
+        for (int i = 0; i < line; i++) {
+            String price = (String) tblRevenue.getValueAt(i, 2);
+            tong += Integer.parseInt(price.replaceAll(",", ""));
+        }
+        lbTong.setText(formatter.format(tong) + " VNĐ");
+    }
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -219,15 +259,105 @@ public class Revenue extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void txtDateCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtDateCaretUpdate
-        
+        while (true) {
+            if (!txtDate.getText().trim().matches("([0-9]{0,2}/)?([0-9]{0,2}/)?[0-9]{4}")) {
+                lbLoi.setText("Nhập đúng định dạng để tìm kiếm: dd/MM/yyyy, MM/yyyy hoặc yyyy.");
+                btnPrint.setEnabled(false);
+                return;
+            } else {
+                lbLoi.setText("");
+                break;
+            }
+        }
+        tblModel.getDataVector().removeAllElements();
+        try {
+            ps = con.prepareStatement("select * from Revenues where Date like ?");
+            ps.setString(1, "%" + (String) txtDate.getText().trim());
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                ps = con.prepareStatement("select * from Revenues where Date like ?");
+                ps.setString(1, "%" + (String) txtDate.getText().trim());
+                rs = ps.executeQuery();
+                while (rs.next()) {
+                    row = new Vector();
+                    row.add(rs.getString(1));
+                    row.add(rs.getString(2));
+                    row.add(formatter.format(rs.getInt(3)));
+                    tblModel.addRow(row);
+                }
+                tblRevenue.setModel(tblModel);
+                btnPrint.setEnabled(true);
+            } else {
+                lbLoi.setText("Không tìm thấy dữ liệu!");
+                tblRevenue.removeAll();
+                btnPrint.setEnabled(false);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        int line = tblRevenue.getRowCount();
+        int tong = 0;
+        for (int i = 0; i < line; i++) {
+            String price = (String) tblRevenue.getValueAt(i, 2);
+            tong += Integer.parseInt(price.replaceAll(",", ""));
+        }
+        lbTong.setText(formatter.format(tong) + " VNĐ");
     }//GEN-LAST:event_txtDateCaretUpdate
 
     private void btnRefreshActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRefreshActionPerformed
-        
+        tblModel.getDataVector().removeAllElements();
+        loadTable();
+        btnPrint.setEnabled(false);
     }//GEN-LAST:event_btnRefreshActionPerformed
 
     private void btnPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPrintActionPerformed
-        
+        File file = new File("Revenue.txt");
+        file.delete();
+        //Viết vào file txt
+        try {
+            Writer b = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("Revenue.txt"), "UTF8"));
+            String a;
+            Date now = new Date();
+
+            b.write("THE GARDEN COFFEE\r\n\r\n");
+            b.write("Địa chỉ: ĐHCNHN Cơ sở 1\r\n");
+            b.write("SĐT: 0979859283\r\n");
+            b.write("Thời gian: " + ft.format(now) + "\r\n\r\n");
+            if (txtDate.getText().trim().matches("[0-9]{0,2}/[0-9]{0,2}/[0-9]{4}")) {
+                a = "ngày " + txtDate.getText().trim();
+                b.write("\tBẢNG THỐNG KÊ DOANH THU (theo " + a + ")\r\n\r\n");
+            } else if (txtDate.getText().trim().matches("[0-9]{0,2}/[0-9]{4}")) {
+                a = "tháng " + txtDate.getText().trim();
+                b.write("\tBẢNG THỐNG KÊ DOANH THU (theo " + a + ")\r\n\r\n");
+            } else if (txtDate.getText().trim().matches("[0-9]{4}")) {
+                a = "năm " + txtDate.getText().trim();
+                b.write("\tBẢNG THỐNG KÊ DOANH THU (theo " + a + ")\r\n\r\n");
+            }
+            b.write("\t---------------------------------\r\n");
+            b.write("\tID\tNgày thu\tSố tiền\r\n");
+            b.write("\t---------------------------------\r\n");
+            int line = tblRevenue.getRowCount();
+            for (int i = 0; i < line; i++) {
+                String id = (String) tblRevenue.getValueAt(i, 0);
+                String date = (String) tblRevenue.getValueAt(i, 1);
+                String money = (String) tblRevenue.getValueAt(i, 2);
+                b.write("\t" + id + "\t" + date + "\t" + money + "\r\n");
+            }
+            b.write("\t---------------------------------\r\n");
+            b.write("\tTổng tiền:\t\t" + lbTong.getText().trim() + "\r\n\r\n\r\n");
+            b.write("Người lập (Ký và ghi rõ họ tên)");
+            b.close();
+        } catch (IOException | NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        //Mở file txt
+        Runtime run = Runtime.getRuntime();
+        try {
+            run.exec("notepad Revenue.txt");
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        btnRefreshActionPerformed(evt);
     }//GEN-LAST:event_btnPrintActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
