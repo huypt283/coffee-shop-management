@@ -5,14 +5,31 @@
  */
 package gui;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.event.KeyEvent;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import static java.lang.Thread.sleep;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import server.DBHelper;
 
@@ -29,14 +46,20 @@ public class BillForm extends javax.swing.JFrame {
     DefaultTableModel tblModel, tblModelHis;
     DBHelper db = new DBHelper();
     Connection con = db.getCon();
-    
+    SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+    SimpleDateFormat ftnow = new SimpleDateFormat("yyyy/MM/dd");
+    SimpleDateFormat ftNgay = new SimpleDateFormat("dd/MM/yyyy");
+    NumberFormat formatter = new DecimalFormat("#,###");
     private String empUserName;
 
     public BillForm(String empName, String userName) {
         empUserName = userName;
         initComponents();
+        clock();
         ImageIcon img = new ImageIcon("image//coffee-tea.png");
         this.setIconImage(img.getImage());
+        panelOnOff(false);
+        setText(false);
         txtIDBill.setEnabled(false);
         btnPrint.setEnabled(false);
         txtEmpName.setText(empName);
@@ -66,9 +89,207 @@ public class BillForm extends javax.swing.JFrame {
         tblModel.addColumn("Số lượng (ly)");
         tblModel.addColumn("Thành tiền (VNĐ)");
         tblBill.setModel(tblModel);
+        try {
+            String url = "Select DISTINCT ProductName from Products join ProductTypes on Products.IDType=ProductTypes.IDType";
+            ps = con.prepareStatement(url);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                cbProduct.addItem(rs.getString("ProductName"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        reloadCombobox();
     }
 
-    
+    private void clock() {
+        Thread clock = new Thread() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        Date t = new Date();
+                        lbTime.setText(ft.format(t));
+                        sleep(1000);
+                    }
+                } catch (InterruptedException e) {
+                }
+            }
+        };
+        clock.start();
+    }
+
+    public void intomoney() {
+        int price, totalprice = 0;
+        int count = tblBill.getRowCount();
+        for (int i = 0; i < count; i++) {
+            price = Integer.parseInt((String) tblBill.getValueAt(i, 6));
+            totalprice += price;
+        }
+        txtTotal.setText(formatter.format(totalprice)); //set giá trị cho txtOrder bằng totalprice
+    }
+
+    public void loadTblFromDB() {
+        try {
+            String url = "Select * from Products Join ProductTypes on Products.IDType=ProductTypes.IDType where Products.ProductName=? and ProductTypes.Size=?";
+            ps = con.prepareStatement(url);
+            ps.setString(1, (String) cbProduct.getSelectedItem());
+            ps.setString(2, (String) cbSize.getSelectedItem());
+            rs = ps.executeQuery();
+            int price, quantity, into;
+            if (rs.next()) {
+                vec = new Vector();
+                price = Integer.parseInt(rs.getString("Price"));
+                quantity = Integer.parseInt(spQuantity.getValue().toString());
+                into = price * quantity;
+                
+                vec.add(rs.getString("IDProduct"));
+                vec.add(rs.getString("ProductName"));
+                vec.add(rs.getString("TypeName"));
+                vec.add(rs.getString("Size"));
+                vec.add(rs.getString("Price"));
+                vec.add(spQuantity.getValue());
+                vec.add(String.valueOf(into));
+                tblModel.addRow(vec);
+            } else {
+                JOptionPane.showMessageDialog(null, "Lỗi:: Không tìm thấy sản phẩm");
+                cbProduct.grabFocus();
+            }
+            tblBill.setModel(tblModel);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
+
+    private void setText(boolean b) {
+        txtGuest.setEnabled(b);
+    }
+
+    public void updatetxtDis1() {
+        int dis;
+        //tính Discount
+        String order = txtTotal.getText().replaceAll(",", "");
+        dis = (Integer.parseInt(txtDis1.getText()) * Integer.parseInt(order)) / 100;
+        txtDis2.setText(formatter.format(dis));
+        //tính total
+        int total = Integer.parseInt(order) - dis;
+        txtPay.setText(formatter.format(total));
+    }
+
+    private void reloadCombobox() {
+        cbSale.removeAllItems();
+        cbSale.addItem("Không có");
+        cbSale.addItem("Khách hàng VIP");
+        try {
+            Date now = new Date();
+            ps = con.prepareStatement("select * from Promotions where StartPromo <= ? and EndPromo >= ?");
+            ps.setString(1, ftnow.format(now));
+            ps.setString(2, ftnow.format(now));
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                cbSale.addItem(rs.getString(2));
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
+
+    private void panelOnOff(boolean b) {
+        lbNhap.setVisible(b);
+        txtCusCard.setVisible(b);
+        lbIDError.setVisible(b);
+        pnInformation.setVisible(b);
+    }
+
+    public void pressPrintandSave(String Name) {
+        int line = tblBill.getRowCount();
+        try {
+            ps = con.prepareStatement("Insert into Orders(DateOrder,TimeOrder,Username) values(date_format(now(),'%d/%m/%Y'),date_format(now(),'%T'),?)");
+            ps.setString(1, Name);
+            ps.executeUpdate();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        int IDOrder = 0;
+        try {
+            ps = con.prepareStatement("Select MAX(IDOrder) as IDOrder from Orders");
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                IDOrder = rs.getInt("IDOrder");
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        //Thêm từng value vào trong database
+        if (IDOrder != 0) {
+            try {
+                for (int i = 0; i < line; i++) {
+                    String IDProduct = (String) tblModel.getValueAt(i, 0);
+                    String quantity = String.valueOf(tblModel.getValueAt(i, 5));
+
+                    String in = "Insert into OrderDetails(IDOrder,IDProduct,CusName,Quantity,NamePromo) values(?,?,?,?,?)";
+                    ps = con.prepareStatement(in);
+                    ps.setInt(1, IDOrder);
+                    ps.setInt(2, Integer.parseInt(IDProduct));
+                    if (cbSale.getSelectedItem().equals("Khách hàng VIP")) {
+                        ps.setString(3, lbIDCus.getText());
+                    } else {
+                        ps.setString(3, "Khách vãng lai");
+                    }
+                    ps.setInt(4, Integer.parseInt(quantity));
+                    ps.setString(5, (String) cbSale.getSelectedItem());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException ex) {
+                try {
+                    ps = con.prepareStatement("delete from OrderDetails where IDOrder=?");
+                    ps.setInt(1, IDOrder);
+                    ps.executeUpdate();
+                    ps = con.prepareStatement("delete from Orders where IDOrder=?");
+                    ps.setInt(1, IDOrder);
+                    ps.executeUpdate();
+                } catch (SQLException ex1) {
+                    JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+                }
+            }
+        }
+
+        //kiểm tra số tiền ngày hôm nay và set lại giá trị
+        String pay = txtPay.getText().replaceAll(",", "");
+        try {
+            ps = con.prepareStatement("SELECT * from Revenues where Date=date_format(now(),'%d/%m/%Y')");
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                int money1 = Integer.parseInt(rs.getString("Money"));
+                int money2 = money1 + Integer.parseInt(pay);
+                ps = con.prepareStatement("Update Revenues set Money=? where Date=date_format(now(),'%d/%m/%Y')");
+                ps.setString(1, money2 + "");
+                ps.executeUpdate();
+            } else {
+                ps = con.prepareStatement("Insert into Revenues(Date,Money) values(date_format(now(),'%d/%m/%Y'),?)");
+                ps.setString(1, pay);
+                ps.executeUpdate();
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+
+        // set lại bảng, combobox và textbox
+        tblModel.getDataVector().removeAllElements();
+        tblBill.revalidate();
+        setText(false);
+        txtIDBill.setEnabled(false);
+        cbSale.setSelectedIndex(0);
+        txtPay.setText("0");
+        txtTotal.setText("0");
+        txtGuest.setText("0");
+        txtRepay.setText("0");
+        ResetPnInfor();
+        txtCusCard.setText("");
+        lbIDError.setText("");
+        btnPrint.setEnabled(false);
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -711,51 +932,262 @@ public class BillForm extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddActionPerformed
-        
+        int line = tblBill.getRowCount();
+        for (int i = 0; i < line; i++) {
+            if (tblBill.getValueAt(i, 1).equals(cbProduct.getSelectedItem()) && tblBill.getValueAt(i, 3).equals(cbSize.getSelectedItem())) {
+                int oldQuan = (int) tblBill.getValueAt(i, 5);
+                int newQuan = (int) spQuantity.getValue();
+                int quanTotal = oldQuan + newQuan;
+                spQuantity.setValue(quanTotal);
+                tblModel.removeRow(i);
+                break;
+            }
+        }
+        loadTblFromDB();
+        cbProduct.setSelectedIndex(0);
+        spQuantity.setValue(1);
+        cbSize.setSelectedIndex(0);
+        intomoney();
+        updatetxtDis1();
+        if (tblBill.getRowCount() > 0) {
+            setText(true);
+        } else {
+            setText(false);
+        }
+        btnPrint.setEnabled(false);
+        txtIDBill.setEnabled(false);
     }//GEN-LAST:event_btnAddActionPerformed
 
     private void txtGuestCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtGuestCaretUpdate
-        
+        int repay;
+        //tính Discount
+        while (true) {
+            if (txtGuest.getText().trim().equals("")) {
+                lbLoiGia.setText("Khách hàng chưa đưa tiền.");
+                txtRepay.setText("0");
+                btnPrint.setEnabled(false);
+                txtIDBill.setEnabled(false);
+                return;
+            } else if (!txtGuest.getText().trim().matches("\\d+")) {
+                lbLoiGia.setText("Tiền phải có dạng số.");
+                txtRepay.setText("0");
+                btnPrint.setEnabled(false);
+                txtIDBill.setEnabled(false);
+                return;
+            } else {
+                lbLoiGia.setText("");
+                btnPrint.setEnabled(false);
+                txtIDBill.setEnabled(false);
+                break;
+            }
+        }
+        String total = txtPay.getText().replaceAll(",", "");
+        repay = Integer.parseInt(txtGuest.getText()) - Integer.parseInt(total);
+        txtRepay.setText(formatter.format(repay));
+        if (repay < 0) {
+            lbLoiGia.setText("Khách hàng chưa đưa đủ tiền.");
+            btnPrint.setEnabled(false);
+            txtIDBill.setEnabled(false);
+            txtRepay.setText("0");
+        } else if (Integer.parseInt(txtGuest.getText()) == 0) {
+            btnPrint.setEnabled(false);
+            txtIDBill.setEnabled(false);
+            txtRepay.setText("0");
+        } else {
+            lbLoiGia.setText("");
+            btnPrint.setEnabled(true);
+            txtIDBill.setEnabled(false);
+        }
     }//GEN-LAST:event_txtGuestCaretUpdate
 
     private void btnDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelActionPerformed
-        
+        int line = tblBill.getSelectedRow();
+        if (line >= 0) {
+            tblModel.removeRow(line);
+            intomoney();
+
+            if (tblBill.getRowCount() > 0) {
+                setText(true);
+                updatetxtDis1();
+            } else {
+                setText(false);
+                txtPay.setText("0");
+                txtTotal.setText("0");
+                txtGuest.setText("0");
+                txtRepay.setText("0");
+            }
+
+            btnPrint.setEnabled(false);
+            txtIDBill.setEnabled(false);
+        }
+
     }//GEN-LAST:event_btnDelActionPerformed
 
     private void miLogoutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miLogoutActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Đăng xuất ngay bây giờ?");
+        if (click == 0) {
+            this.setVisible(false);
+            new LoginForm().setVisible(true);
+        }
     }//GEN-LAST:event_miLogoutActionPerformed
 
     private void btnPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPrintActionPerformed
-        
+        if (cbSale.getSelectedItem().equals("Khách hàng VIP")) {
+            while (true) {
+                if (txtCusCard.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(null, "Mã thẻ VIP không được để trống!");
+                    txtCusCard.grabFocus();
+                    return;
+                } else if (!txtCusCard.getText().trim().equals("") && !lbIDError.getText().equals("Thành công.")) {
+                    JOptionPane.showMessageDialog(null, "Mã thẻ VIP chưa đúng, vui lòng nhập lại!");
+                    txtCusCard.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            }
+        }
+//        while (true) {
+//            if (txtIDBill.getText().trim().equals("")) {
+//                JOptionPane.showMessageDialog(null, "Mã hóa đơn không được để trống.");
+//                txtIDBill.grabFocus();
+//                return;
+//            } else if (!txtIDBill.getText().trim().matches("HD[0-9]{4}")) {
+//                JOptionPane.showMessageDialog(null, "Mã hóa đơn có dạng HDxxxx, trong đó xxxx là số nguyên.");
+//                txtIDBill.grabFocus();
+//                return;
+//            } else {
+//                break;
+//            }
+//        }
+        try {
+//            ps = con.prepareStatement("select IDOrder from Orders where IDOrder=?");
+//            ps.setString(1, txtIDBill.getText().trim());
+//            rsIDOrder = ps.executeQuery();
+//            if (!rsIDOrder.next()) {
+            ps = con.prepareStatement("Select * from Employees where NameEmp=?");
+            ps.setString(1, txtEmpName.getText());
+            rsEmp = ps.executeQuery();
+            if (rsEmp.next()) {
+                pressPrintandSave(rsEmp.getString(1));
+            } else {
+                JOptionPane.showMessageDialog(null, "Tên nhân viên không tồn tại.");
+            }
+//            } else {
+//                JOptionPane.showMessageDialog(null, "Mã hóa đơn đã tồn tại, vui lòng chọn mã mới.");
+//                txtIDBill.grabFocus();
+//            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnPrintActionPerformed
 
     private void jMenu3MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jMenu3MouseClicked
-        
+        new AboutUs().setVisible(true);
     }//GEN-LAST:event_jMenu3MouseClicked
 
     private void jMenu2MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jMenu2MouseClicked
-        
+        new OrderHistory().setVisible(true);
     }//GEN-LAST:event_jMenu2MouseClicked
 
     private void miInformationActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miInformationActionPerformed
-        
+        new Information(txtEmpName.getText()).setVisible(true);
     }//GEN-LAST:event_miInformationActionPerformed
 
     private void miPassChangeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_miPassChangeActionPerformed
-        
+        new PasswordChange(empUserName, false).setVisible(true);
     }//GEN-LAST:event_miPassChangeActionPerformed
 
     private void txtCusCardCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtCusCardCaretUpdate
-        
+        btnPrint.setEnabled(false);
+        txtIDBill.setEnabled(false);
+        if (txtCusCard.getText().trim().equals("")) {
+            txtDis1.setText("0");
+            lbIDError.setText("Vui lòng nhập mã thẻ.");
+            lbIDError.setForeground(Color.red);
+            ResetPnInfor();
+        } else {
+            while (true) {
+                if (!txtCusCard.getText().trim().matches("\\d+")) {
+                    lbIDError.setText("Mã thẻ dạng số.");
+                    lbIDError.setForeground(Color.red);
+                    txtDis1.setText("0");
+                    ResetPnInfor();
+                    return;
+                } else {
+                    break;
+                }
+            }
+            try {
+                ps = con.prepareStatement("Select * from Customers where IdentityCard=?");
+                ps.setString(1, txtCusCard.getText());
+                rs = ps.executeQuery();
+                if (!rs.next()) {
+                    lbIDError.setText("Mã thẻ không tồn tại!");
+                    lbIDError.setForeground(Color.red);
+                    txtDis1.setText("0");
+                    ResetPnInfor();
+                } else {
+                    lbIDError.setText("Thành công.");
+                    lbIDError.setForeground(Color.BLUE);
+                    lbIDCus.setText(rs.getString(1));
+                    lbNameCus.setText(rs.getString(3));
+                    lbDateCus.setText(rs.getString(4));
+                    lbQuantityCus.setText(rs.getString(7));
+                    lbDisCus.setText(rs.getString(8) + "%");
+                    txtDis1.setText(rs.getString(8));
+                }
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
+        updatetxtDis1();
     }//GEN-LAST:event_txtCusCardCaretUpdate
 
     private void cbSaleActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cbSaleActionPerformed
-        
+        btnPrint.setEnabled(false);
+        txtIDBill.setEnabled(false);
+        if (cbSale.getSelectedItem().equals("Không có")) {
+            txtDis1.setText("0");
+            lbNgayKM.setText("");
+            panelOnOff(false);
+            updatetxtDis1();
+            ResetPnInfor();
+            txtCusCard.setText("");
+            lbIDError.setText("");
+        } else if (cbSale.getSelectedItem().equals("Khách hàng VIP")) {
+            txtDis1.setText("0");
+            lbNgayKM.setText("");
+            updatetxtDis1();
+            panelOnOff(true);
+        } else {
+            panelOnOff(false);
+            ResetPnInfor();
+            txtCusCard.setText("");
+            lbIDError.setText("");
+            try {
+                ps = con.prepareStatement("Select * from Promotions where NamePromo=?");
+                ps.setString(1, (String) cbSale.getSelectedItem());
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    Date start = ftnow.parse(rs.getString(4));
+                    Date end = ftnow.parse(rs.getString(5));
+                    txtDis1.setText(rs.getString(3));
+                    lbNgayKM.setText(ftNgay.format(start) + " - " + ftNgay.format(end));
+                    updatetxtDis1();
+                }
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            } catch (ParseException ex) {
+                Logger.getLogger(BillForm.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }//GEN-LAST:event_cbSaleActionPerformed
 
     private void cbSaleKeyPressed(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_cbSaleKeyPressed
-        
+        if (evt.getKeyCode() == KeyEvent.VK_F5) {
+            reloadCombobox();
+        }
     }//GEN-LAST:event_cbSaleKeyPressed
 
 
