@@ -273,6 +273,103 @@ public class BillForm extends javax.swing.JFrame {
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
         }
+        //Viết vào file txt
+        int guest = Integer.parseInt(txtGuest.getText());
+        try {
+            Date now = new Date();
+            int quantotal;
+            try (Writer bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("History//" + txtIDBill.getText().trim() + ".txt"), "UTF8"))) {
+                bw.write("\t\t\tTHE GARDEN COFFEE\r\n\r\n");
+                bw.write("\t\t\tĐHCNHN CƠ SỞ 1\r\n");
+                bw.write("\t\t\tSĐT: 0979859283\r\n\r\n");
+                bw.write("\t\t\tHÓA ĐƠN BÁN HÀNG\r\n\r\n");
+                bw.write("Mã hóa đơn: " + IDOrder + "\r\n");
+                bw.write("Thời gian: " + ft.format(now) + "\r\n");
+                bw.write("NHÂN VIÊN: " + txtEmpName.getText() + "\r\n");
+                bw.write("------------------------------------------------------------\r\n");
+                bw.write("Mã\tKích thước\tSố lượng\tĐơn giá\tThành tiền\r\n");
+                bw.write("-----------------------------------------------------------\r\n");
+                //Ghi sản phẩm
+                quantotal = 0;
+                for (int i = 0; i < line; i++) {
+                    String id = (String) tblModel.getValueAt(i, 0);
+                    String name = (String) tblModel.getValueAt(i, 1);
+                    String size = (String) tblModel.getValueAt(i, 3);
+                    String price = String.valueOf(tblModel.getValueAt(i, 4));
+                    String quantity = String.valueOf(tblModel.getValueAt(i, 5));
+                    String intomoney = String.valueOf(tblModel.getValueAt(i, 6));
+                    bw.write((i + 1) + ". " + name + "\r\n");
+                    bw.write(id + "\t" + size + "\t\t" + quantity + "\t\t" + price + "\t" + intomoney + "\r\n\r\n");
+                    quantotal += Integer.parseInt(quantity);
+                }
+                bw.write("------------------------------------------------------------\r\n");
+                bw.write("Tổng cộng:\t\t" + quantotal + "\t\t\t" + txtTotal.getText() + " VNĐ\r\n");
+                bw.write("\t\tChiết khấu:\t" + txtDis1.getText() + "%\t\t-" + txtDis2.getText() + " VNĐ\r\n");
+                bw.write("\t\t--------------------------------------------\r\n");
+                bw.write("\t\tThành tiền:\t\t\t" + txtPay.getText() + " VNĐ\r\n");
+                bw.write("\t\t--------------------------------------------\r\n");
+                bw.write("\t\tTiền khách đưa:\t\t\t" + formatter.format(guest) + " VNĐ\r\n");
+                bw.write("\t\tTiền trả lại:\t\t\t" + txtRepay.getText() + " VNĐ\r\n");
+                bw.write("------------------------------------------------------------\r\n");
+                bw.write("Chương trình khuyến mãi: ");
+                if (cbSale.getSelectedItem().equals("Không có")) {
+                    bw.write("Không có.\r\n");
+                } else if (cbSale.getSelectedItem().equals("Khách hàng VIP")) {
+                    bw.write("Thành viên quán.\r\n");
+                    bw.write("-----Thông tin thành viên-----\r\n");
+                    bw.write("Mã thẻ: " + lbIDCus.getText() + "\r\n");
+                    bw.write("Tên thành viên: " + lbNameCus.getText() + "\r\n");
+                    bw.write("Ngày đăng ký: " + lbDateCus.getText() + "\r\n");
+                    bw.write("Số lượng cũ: " + lbQuantityCus.getText() + " ly.\r\n");
+                    bw.write("Số ly mới mua: " + quantotal + " ly.\r\n");
+                    bw.write("Chiết khấu (tính theo số lượng cũ): " + lbDisCus.getText() + "\r\n");
+                } else {
+                    bw.write((String) cbSale.getSelectedItem() + "\r\n");
+                }
+                bw.write("------------------------------------------------------------\r\n");
+                bw.write("Mật khẩu Wifi: motdentam\r\n");
+                bw.write("---------------------CÁM ƠN QUÝ KHÁCH!----------------------");
+            }
+            //update số ly và chiết khấu vào bảng Customers nếu là KH VIP
+            if (cbSale.getSelectedIndex() == 1) {
+                int quannew = Integer.parseInt(lbQuantityCus.getText()) + quantotal;
+                ps = con.prepareStatement("Update Customers set Quantity=?,Discount=? where IDCus=?");
+                ps.setInt(1, quannew);
+                ps.setString(3, lbIDCus.getText());
+                try {
+                    if (quannew < 10) {
+                        ps.setInt(2, 0);
+                        ps.executeUpdate();
+                    } else if (quannew < 20) {
+
+                        ps.setInt(2, 5);
+                        ps.executeUpdate();
+
+                    } else if (quannew < 30) {
+                        ps.setInt(2, 10);
+                        ps.executeUpdate();
+
+                    } else if (quannew < 40) {
+                        ps.setInt(2, 15);
+                        ps.executeUpdate();
+                    } else if (quannew < 50) {
+                        ps.setInt(2, 20);
+                        ps.executeUpdate();
+                    } else if (quannew >= 50) {
+                        ps.setInt(2, 25);
+                        ps.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                }
+            }
+        } catch (Exception e) {
+        }
+        //Mở file txt
+        Runtime run = Runtime.getRuntime();
+        try {
+            run.exec("notepad History//" + txtIDBill.getText().trim() + ".txt");
+        } catch (IOException e) {
+        }
 
         // set lại bảng, combobox và textbox
         tblModel.getDataVector().removeAllElements();
