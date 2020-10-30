@@ -8,6 +8,7 @@ package gui;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -229,23 +230,27 @@ public class AdminForm extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnLogoutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLogoutActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Đăng xuất ngay bây giờ?");
+        if (click == 0) {
+            this.setVisible(false);
+            new LoginForm().setVisible(true);
+        }
     }//GEN-LAST:event_btnLogoutActionPerformed
 
     private void btnRevenueActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRevenueActionPerformed
-        
+        new Revenue().setVisible(true);
     }//GEN-LAST:event_btnRevenueActionPerformed
 
     private void btnPromotionsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPromotionsActionPerformed
-        
+        new Promotions().setVisible(true);
     }//GEN-LAST:event_btnPromotionsActionPerformed
 
     private void btnCustomerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCustomerActionPerformed
-        
+        new Customer().setVisible(true);
     }//GEN-LAST:event_btnCustomerActionPerformed
 
     private void btnOrderActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOrderActionPerformed
-        
+        new ManageOrder().setVisible(true);
     }//GEN-LAST:event_btnOrderActionPerformed
 
     private void btnEmpActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEmpActionPerformed
@@ -253,15 +258,15 @@ public class AdminForm extends javax.swing.JFrame {
     }//GEN-LAST:event_btnEmpActionPerformed
 
     private void btnHistoryActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnHistoryActionPerformed
-        
+        new OrderHistory().setVisible(true);
     }//GEN-LAST:event_btnHistoryActionPerformed
 
     private void btnProductActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnProductActionPerformed
-        
+        new Product().setVisible(true);
     }//GEN-LAST:event_btnProductActionPerformed
 
     private void btnChangePwActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnChangePwActionPerformed
-        
+        new PasswordChange(adminUserName, true).setVisible(true);
     }//GEN-LAST:event_btnChangePwActionPerformed
 
 
