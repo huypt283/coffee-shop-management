@@ -5,6 +5,7 @@
  */
 package gui;
 
+import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -52,6 +53,7 @@ public class ManageOrder extends javax.swing.JFrame {
         tblModel.addColumn("Nhân viên");
         tblOrder.setModel(tblModel);
         reloadTable();
+        reloadCombobox();
     }
 
     private void reloadTable() {
@@ -76,6 +78,65 @@ public class ManageOrder extends javax.swing.JFrame {
             tblOrder.setModel(tblModel);
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ");
+        }
+    }
+
+    private void reloadCombobox() {
+        cbIDOrder.removeAllItems();
+        cbProductName.removeAllItems();
+        cbEmpName.removeAllItems();
+        cbPromotions.removeAllItems();
+        cbCusName.removeAllItems();
+        try {
+            String url = "Select IDOrder from Orders Order by IDOrder DESC";
+            ps = con.prepareStatement(url);
+            rsIDOrder = ps.executeQuery();
+            while (rsIDOrder.next()) {
+                cbIDOrder.addItem(rsIDOrder.getString("IDOrder"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        try {
+            String url = "Select DISTINCT ProductName from Products Order by ProductName ASC";
+            ps = con.prepareStatement(url);
+            rsIDProduct = ps.executeQuery();
+            while (rsIDProduct.next()) {
+                cbProductName.addItem(rsIDProduct.getString("ProductName"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        try {
+            String url = "Select Username from Employees where Username != 'null'";
+            ps = con.prepareStatement(url);
+            rsEmp = ps.executeQuery();
+            while (rsEmp.next()) {
+                cbEmpName.addItem(rsEmp.getString("Username"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        try {
+            String url = "Select NamePromo from Promotions Order by IDPromo DESC";
+            ps = con.prepareStatement(url);
+            rsPromotions = ps.executeQuery();
+            while (rsPromotions.next()) {
+                cbPromotions.addItem(rsPromotions.getString("NamePromo"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        try {
+            String url = "Select CusName from Customers Order by CusName ASC";
+            ps = con.prepareStatement(url);
+            rsIDCus = ps.executeQuery();
+            cbCusName.addItem("Khách vãng lai");
+            while (rsIDCus.next()) {
+                cbCusName.addItem(rsIDCus.getString("CusName"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
         }
     }
 
@@ -284,7 +345,145 @@ public class ManageOrder extends javax.swing.JFrame {
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchActionPerformed
-        
+        tblModel.getDataVector().removeAllElements();
+        String s1 = (String) cbIDOrder.getSelectedItem();
+        String s2 = (String) cbProductName.getSelectedItem();
+        String s3 = (String) cbCusName.getSelectedItem();
+        String s4 = (String) cbPromotions.getSelectedItem();
+        String s5 = txtDate.getText().trim();
+        String s6 = txtTime.getText().trim();
+        String s7 = (String) cbEmpName.getSelectedItem();
+        if (!txtDate.getText().trim().equals("")) {
+            while (true) {
+                if (!txtDate.getText().trim().matches("([0-9]{0,2}/)?([0-9]{0,2}/)?[0-9]{4}")) {
+                    lbDateError.setText("Ngày có dạng: dd/MM/yyyy, MM/yyyy hoặc yyyy.");
+                    lbDateError.setForeground(Color.red);
+                    tblOrder.removeAll();
+                    return;
+                } else {
+                    lbDateError.setText("");
+                    break;
+                }
+            }
+        } else {
+            lbDateError.setText("");
+        }
+        if (!txtTime.getText().trim().equals("")) {
+            while (true) {
+                if (!txtTime.getText().trim().matches("[0-9]{0,2}:?[0-9]{0,2}?")) {
+                    lbTimeError.setText("Thời gian có dạng: hh hoặc hh:mm.");
+                    lbTimeError.setForeground(Color.red);
+                    tblOrder.removeAll();
+                    return;
+                } else {
+                    lbTimeError.setText("");
+                    break;
+                }
+            }
+        } else {
+            lbTimeError.setText("");
+        }
+        String ss = "select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                + "where OrderDetails.IDOrder LIKE ? and Products.ProductName LIKE ? "
+                + "and OrderDetails.CusName LIKE ? and OrderDetails.NamePromo LIKE ? "
+                + "and Orders.DateOrder LIKE ? and Orders.TimeOrder LIKE ? and Orders.Username LIKE ? Order by OrderDetails.IDOrder DESC";
+        try {
+            ps = con.prepareStatement(ss);
+            if (cbIDOrder.getSelectedIndex() == -1) {
+                ps.setString(1, "%");
+            } else {
+                ps.setString(1, s1);
+            }
+            if (cbProductName.getSelectedIndex() == -1) {
+                ps.setString(2, "%");
+            } else {
+                ps.setString(2, s2);
+            }
+            if (cbCusName.getSelectedIndex() == -1) {
+                ps.setString(3, "%");
+            } else {
+                ps.setString(3, s3);
+            }
+            if (cbPromotions.getSelectedIndex() == -1) {
+                ps.setString(4, "%");
+            } else {
+                ps.setString(4, s4);
+            }
+            if (txtDate.getText().trim().equals("")) {
+                ps.setString(5, "%");
+            } else {
+                ps.setString(5, "%" + s5);
+            }
+            if (txtTime.getText().trim().equals("")) {
+                ps.setString(6, "%");
+            } else {
+                ps.setString(6, s6 + "%");
+            }
+            if (cbEmpName.getSelectedIndex() == -1) {
+                ps.setString(7, "%");
+            } else {
+                ps.setString(7, s7);
+            }
+            rsSearch1 = ps.executeQuery();
+            if (rsSearch1.next()) {
+                ps = con.prepareStatement(ss);
+                if (cbIDOrder.getSelectedIndex() == -1) {
+                    ps.setString(1, "%");
+                } else {
+                    ps.setString(1, s1);
+                }
+                if (cbProductName.getSelectedIndex() == -1) {
+                    ps.setString(2, "%");
+                } else {
+                    ps.setString(2, s2);
+                }
+                if (cbCusName.getSelectedIndex() == -1) {
+                    ps.setString(3, "%");
+                } else {
+                    ps.setString(3, s3);
+                }
+                if (cbPromotions.getSelectedIndex() == -1) {
+                    ps.setString(4, "%");
+                } else {
+                    ps.setString(4, s4);
+                }
+                if (txtDate.getText().trim().equals("")) {
+                    ps.setString(5, "%");
+                } else {
+                    ps.setString(5, "%" + s5);
+                }
+                if (txtTime.getText().trim().equals("")) {
+                    ps.setString(6, "%");
+                } else {
+                    ps.setString(6, s6 + "%");
+                }
+                if (cbEmpName.getSelectedIndex() == -1) {
+                    ps.setString(7, "%");
+                } else {
+                    ps.setString(7, s7);
+                }
+                rsSearch2 = ps.executeQuery();
+                while (rsSearch2.next()) {
+                    rowSearch = new Vector();
+                    rowSearch.add(rsSearch2.getString("IDOrder"));
+                    rowSearch.add(rsSearch2.getString("ProductName"));
+                    rowSearch.add(rsSearch2.getString("CusName"));
+                    rowSearch.add(rsSearch2.getString("Quantity"));
+                    rowSearch.add(rsSearch2.getString("NamePromo"));
+                    rowSearch.add(rsSearch2.getString("TimeOrder"));
+                    rowSearch.add(rsSearch2.getString("DateOrder"));
+                    rowSearch.add(rsSearch2.getString("Username"));
+                    tblModel.addRow(rowSearch);
+                }
+                tblOrder.setModel(tblModel);
+            } else {
+                JOptionPane.showMessageDialog(null, "Không tìm thấy dữ liệu.");
+                btnResetActionPerformed(evt);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnSearchActionPerformed
 
 
