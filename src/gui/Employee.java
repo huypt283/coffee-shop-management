@@ -46,6 +46,7 @@ public class Employee extends javax.swing.JFrame {
     BCryptPasswordEncoder edpw = new BCryptPasswordEncoder();
     Date now = new Date();
     NumberFormat nft = new DecimalFormat("#,###");
+    String password;
 
     public Employee() {
         initComponents();
@@ -708,8 +709,9 @@ public class Employee extends javax.swing.JFrame {
                 ps.setString(1, (String) tblModel.getValueAt(line, 0));
                 rs = ps.executeQuery();
                 if (rs.next()) {
-                    txtPass.setText(rs.getString(1));
-                    txtConfirmPass.setText(rs.getString(1));
+                    password = rs.getString(1);
+                    txtPass.setText(password);
+                    txtConfirmPass.setText(password);
                 }
                 String username = (String) tblModel.getValueAt(line, 0);
                 String name = (String) tblModel.getValueAt(line, 1);
@@ -1108,8 +1110,8 @@ public class Employee extends javax.swing.JFrame {
                     JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!");
                     txtPass.grabFocus();
                     return;
-                } else if (txtPass.getText().trim().length() > 18) {
-                    JOptionPane.showMessageDialog(this, "Mật khẩu không được lớn hơn 18 kí tự!");
+                } else if (txtPass.getText().trim().length() > 100) {
+                    JOptionPane.showMessageDialog(this, "Mật khẩu không được lớn hơn 100 kí tự!");
                     txtPass.grabFocus();
                     return;
                 } else if (txtPass.getText().trim().length() < 6) {
@@ -1217,7 +1219,10 @@ public class Employee extends javax.swing.JFrame {
                 ps = con.prepareStatement("Update Employees set Password=?,NameEmp=?,Gender=?,Birthday=?,Phone=?,Email=?,Address=?,Avatar=? where Username=?");
 
                 ps.setString(9, txtUser.getText());
-                ps.setString(1, edpw.encode(txtPass.getText()));
+                if (txtPass.getText().equals(password))
+                    ps.setString(1, password);
+                else
+                    ps.setString(1, edpw.encode(txtPass.getText()));
                 ps.setString(2, txtName.getText());
                 ps.setString(4, ft.format(txtBirthday.getDate()));
                 ps.setString(5, txtPhone.getText());
