@@ -8,11 +8,23 @@ package gui;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import javax.swing.ImageIcon;
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileFilter;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import server.DBHelper;
 
 /**
@@ -24,10 +36,16 @@ public class Employee extends javax.swing.JFrame {
     ResultSet rs, rsSearch;
     Statement st;
     Vector vec, rowTen;
+    PreparedStatement ps, psSearch;
     DefaultTableModel tblModel;
     DBHelper db = new DBHelper();
     Connection con;
+    SimpleDateFormat ft = new SimpleDateFormat("dd/MM/yyyy");
+    SimpleDateFormat ftError = new SimpleDateFormat("yyyy/MM/dd");
     SetImage img = new SetImage();
+    BCryptPasswordEncoder edpw = new BCryptPasswordEncoder();
+    Date now = new Date();
+    NumberFormat nft = new DecimalFormat("#,###");
 
     public Employee() {
         initComponents();
@@ -45,6 +63,7 @@ public class Employee extends javax.swing.JFrame {
         tblModel.addColumn("Hình ảnh");
 
         tblEmp.setModel(tblModel);
+        loadData();
 
         btnAdd.setSize(25, 25);
         new SetImage().setImageButton(btnAdd, "image//manageradd.png");
@@ -66,7 +85,31 @@ public class Employee extends javax.swing.JFrame {
         new SetImage().setImageButton(btnLuu, "image//managerluu.png");
 
     }
-    
+
+    private void loadData() {
+        con = db.getCon();
+        try {
+            ps = con.prepareStatement("Select * from Employees");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                vec = new Vector();
+                vec.add(rs.getString(1));
+                vec.add(rs.getString(3));
+                vec.add(rs.getString(4));
+                vec.add(rs.getString(5));
+                vec.add(rs.getString(6));
+                vec.add(rs.getString(7));
+                vec.add(rs.getString(8));
+                vec.add(rs.getString(9));
+
+                tblModel.addRow(vec);
+            }
+            tblEmp.setModel(tblModel);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -657,20 +700,143 @@ public class Employee extends javax.swing.JFrame {
         rdFemale.setEnabled(false);
         rdMale.setEnabled(false);
         btnBrowse.setEnabled(false);
-        //todo
+        int line = tblEmp.getSelectedRow();
+        if (line >= 0) {
+            try {
+                String sql = "Select Password from Employees where Username=?";
+                ps = con.prepareStatement(sql);
+                ps.setString(1, (String) tblModel.getValueAt(line, 0));
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    txtPass.setText(rs.getString(1));
+                    txtConfirmPass.setText(rs.getString(1));
+                }
+                String username = (String) tblModel.getValueAt(line, 0);
+                String name = (String) tblModel.getValueAt(line, 1);
+                String sex = (String) tblModel.getValueAt(line, 2);
+                Date birthday = ft.parse((String) tblModel.getValueAt(line, 3));
+                String phone = (String) tblModel.getValueAt(line, 4);
+                String email = (String) tblModel.getValueAt(line, 5);
+                String address = (String) tblModel.getValueAt(line, 6);
+                String image = (String) tblModel.getValueAt(line, 7);
+                txtUser.setText(username);
+                txtName.setText(name);
+                txtBirthday.setDate(birthday);
+                txtPhone.setText(phone);
+                txtEmail.setText(email);
+                tarAddress.setText(address);
+                txtHinh.setText(image);
+                img.setImageLabel(lbHinh, "image//" + image);
+                if (sex.equals("Nam")) {
+                    rdMale.setSelected(true);
+                } else {
+                    rdFemale.setSelected(true);
+                }
+            } catch (ParseException e) {
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_tblEmpMouseClicked
 
     private void btnCalculateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCalculateActionPerformed
-        
+        while (true) {
+            if (txtNgay.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Số ngày làm việc không được bỏ trống!");
+                return;
+            } else if (!txtNgay.getText().trim().matches("[0-9]+")) {
+                JOptionPane.showMessageDialog(null, "Ngày làm việc phải là số ! ");
+                return;
+            } else if (Double.parseDouble(txtNgay.getText().trim()) > 31) {
+                JOptionPane.showMessageDialog(null, "Số ngày làm việc phải nhỏ hơn 31");
+                return;
+            } else {
+                break;
+            }
+        }
+        double ngay = Double.parseDouble(txtNgay.getText().trim());
+        String a = (String) cbbLuong.getSelectedItem();
+        double LuongCB = Double.parseDouble(a.replaceAll(",", ""));
+        double TienLuong;
+
+        if (txtThuong.getText().trim().equals("")) {
+            TienLuong = ngay * LuongCB;
+        } else {
+            while (true) {
+                if (!txtThuong.getText().trim().matches("[0-9]+")) {
+                    JOptionPane.showMessageDialog(null, "Tiền thưởng phải là số!");
+                    return;
+                } else if (Double.parseDouble(txtThuong.getText().trim()) > 500000) {
+                    JOptionPane.showMessageDialog(null, "Tiền thưởng phải nhỏ hơn 500.000.");
+                    return;
+                } else {
+                    break;
+                }
+            }
+            double Thuong = Double.parseDouble(txtThuong.getText().trim());
+            TienLuong = (ngay * LuongCB) + Thuong;
+        }
+        txtTienLuong.setText(String.valueOf(nft.format(TienLuong)) + " VNĐ");
     }//GEN-LAST:event_btnCalculateActionPerformed
 
     private void txtSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtSearchActionPerformed
-        
+        tblModel.getDataVector().removeAllElements();
+        try {
+            ps = con.prepareStatement("Select * from Employees where Username like ? or NameEmp like ?");
+            ps.setString(1, "%" + txtSearch.getText() + "%");
+            ps.setString(2, "%" + txtSearch.getText() + "%");
+            rs = ps.executeQuery();
+            if (!rs.next()) {
+                JOptionPane.showMessageDialog(null, "Không tìm thấy nhân viên ");
+                loadData();
+            } else {
+                ps = con.prepareStatement("Select * from Employees where Username like ? or NameEmp like ?");
+                ps.setString(1, "%" + txtSearch.getText() + "%");
+                ps.setString(2, "%" + txtSearch.getText() + "%");
+                rs = ps.executeQuery();
+                while (rs.next()) {
+                    vec = new Vector();
+                    vec.add(rs.getString(1));
+//                    vec.add(rs.getString(2));
+                    vec.add(rs.getString(3));
+                    vec.add(rs.getString(4));
+                    vec.add(rs.getString(5));
+                    vec.add(rs.getString(6));
+                    vec.add(rs.getString(7));
+                    vec.add(rs.getString(8));
+                    vec.add(rs.getString(9));
+
+                    tblModel.addRow(vec);
+                }
+                tblEmp.setModel(tblModel);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ.");
+        }
     }//GEN-LAST:event_txtSearchActionPerformed
 
     private void btnBrowseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBrowseActionPerformed
         // TODO add your handling code here:
-        
+        JFileChooser fileChooser = new JFileChooser("image");
+        FileFilter filter = new FileNameExtensionFilter("Image file", "gjf", "jpg", "png");
+
+        fileChooser.setFileFilter(filter);
+        fileChooser.setMultiSelectionEnabled(false);
+
+        int action = fileChooser.showOpenDialog(this);
+        if (action == JFileChooser.APPROVE_OPTION) {
+            while (true) {
+                if (!fileChooser.getSelectedFile().getName().matches("([^\\s]+(\\.(?i)(jpg|png|gif|bmp))$)")) {
+                    JOptionPane.showMessageDialog(null, "Định dạng file hình đuôi phải là GIF, JPG, PNG!");
+                    return;
+                } else {
+                    break;
+                }
+            }
+            String imgFile = fileChooser.getSelectedFile().getName();
+            txtHinh.setText(imgFile);
+            img.setImageLabel(lbHinh, "image//" + imgFile);
+        }
     }//GEN-LAST:event_btnBrowseActionPerformed
 
     private void btnResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResetActionPerformed
@@ -705,6 +871,8 @@ public class Employee extends javax.swing.JFrame {
         rdFemale.setEnabled(true);
         rdMale.setEnabled(true);
         btnBrowse.setEnabled(true);
+
+        loadData();
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnCloseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCloseActionPerformed
@@ -732,15 +900,345 @@ public class Employee extends javax.swing.JFrame {
     }//GEN-LAST:event_btnEditActionPerformed
 
     private void btnDeleteActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeleteActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn chắc chắn muốn xóa ?");
+        if (click == 0) {
+            try {
+                ps = con.prepareStatement("select * from Orders where Username=?");
+                ps.setString(1, txtUser.getText());
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    JOptionPane.showMessageDialog(null, "Nhân viên đang còn đơn hàng, không thể xóa!");
+                } else {
+                    try {
+                        ps = con.prepareStatement("Delete from Employees where Username=?");
+                        ps.setString(1, txtUser.getText());
+                        ps.executeUpdate();
+                        JOptionPane.showMessageDialog(null, "Xóa thành công ! ");
+                        btnResetActionPerformed(evt);
+                        tblModel.getDataVector().removeAllElements();
+                        loadData();
+                    } catch (Exception e) {
+                    }
+                }
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ.");
+            }
+        }
     }//GEN-LAST:event_btnDeleteActionPerformed
 
     private void btnAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn có muốn thêm nhân viên mới?");
+        while (true) {
+            try {
+                ps = con.prepareStatement("select * from Employees where Username = ?");
+                ps.setString(1, txtUser.getText().trim());
+                rs = ps.executeQuery();
+                if (txtUser.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Tài khoản không được để trống!");
+                    txtUser.grabFocus();
+                    return;
+                } else if (rs.next()) {
+                    JOptionPane.showMessageDialog(this, "Tài khoản này đã tồn tại!");
+                    txtUser.grabFocus();
+                    return;
+                } else if (txtUser.getText().trim().length() > 30) {
+                    JOptionPane.showMessageDialog(this, "Tài khoản không được lớn hơn 30 kí tự!");
+                    txtUser.grabFocus();
+                    return;
+                } else if (txtUser.getText().trim().length() < 6) {
+                    JOptionPane.showMessageDialog(this, "Tài khoản phải lớn hơn 6 kí tự!");
+                    txtUser.grabFocus();
+                    return;
+                } else if (!txtUser.getText().trim().matches("[A-Za-z0-9]+")) {
+                    JOptionPane.showMessageDialog(this, "Tài khoản phải có chữ và số!");
+                    txtUser.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+            }
+
+        }
+        while (true) {
+            if (txtPass.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!");
+                txtPass.grabFocus();
+                return;
+            } else if (txtPass.getText().trim().length() > 18) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu không được lớn hơn 18 kí tự!");
+                txtPass.grabFocus();
+                return;
+            } else if (txtPass.getText().trim().length() < 6) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu phải lớn hơn 6 kí tự!");
+                txtPass.grabFocus();
+                return;
+            } else if (!txtPass.getText().matches("[A-Za-z0-9]+")) {
+                JOptionPane.showMessageDialog(this, "Mật khẩu không được có khoảng cách và kí tự đặc biệt!");
+                txtPass.grabFocus();
+                return;
+            } else {
+                break;
+            }
+
+        }
+        while (true) {
+            if (txtConfirmPass.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(this, "Xác nhận mật khẩu không được để trống!");
+                txtConfirmPass.grabFocus();
+                return;
+            } else if (!txtConfirmPass.getText().trim().equals(txtPass.getText().trim())) {
+                JOptionPane.showMessageDialog(this, "Xác nhận mật khẩu phải giống mật khẩu!");
+                txtConfirmPass.grabFocus();
+                return;
+            } else {
+                break;
+            }
+
+        }
+        while (true) {
+            if (txtName.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!");
+                txtName.grabFocus();
+                return;
+            } else if (txtName.getText().trim().length() > 30) {
+                JOptionPane.showMessageDialog(this, "Tên không được lớn hơn 30 kí tự!");
+                txtName.grabFocus();
+                return;
+            }
+            {
+                break;
+            }
+
+        }
+        while (true) {
+            if (ftError.format(txtBirthday.getDate()).compareTo("2000/01/01") >= 0) {
+                JOptionPane.showMessageDialog(this, "Nhân viên phải đủ 18 tuổi!");
+                txtBirthday.grabFocus();
+                return;
+            } else {
+                break;
+            }
+
+        }
+        if (!txtPhone.getText().trim().equals("")) {
+            while (true) {
+                if (txtPhone.getText().trim().length() > 11 || txtPhone.getText().trim().length() < 10) {
+                    JOptionPane.showMessageDialog(this, "Số điện thoại gồm 10-11 số.");
+                    txtPhone.grabFocus();
+                    return;
+                } else if (!txtPhone.getText().trim().matches("0[1-9]{1}\\d{8,9}")) {
+                    JOptionPane.showMessageDialog(this, "Không đúng định dạng số điện thoại ! Ví dụ : 012345678x hoặc 098765432x");
+                    txtPhone.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+
+            }
+        }
+        if (!txtEmail.getText().trim().equals("")) {
+            while (true) {
+                if (!txtEmail.getText().trim().matches("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
+                        + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")) {
+                    JOptionPane.showMessageDialog(this, "Không đúng định dạng Email ! Ví dụ : (abcdef@gmail.com) ");
+                    txtEmail.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            }
+        }
+        while (true) {
+            if (tarAddress.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(this, "Địa chỉ không được để trống!");
+                tarAddress.grabFocus();
+                return;
+            } else if (tarAddress.getText().trim().length() > 100) {
+                JOptionPane.showMessageDialog(this, "Địa chỉ không được lớn hơn 100 kí tự!");
+                tarAddress.grabFocus();
+                return;
+            } else {
+                break;
+            }
+
+        }
+        while (true) {
+            if (txtHinh.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(this, "Hình ảnh không được để trống!");
+                txtHinh.grabFocus();
+                return;
+            } else {
+                break;
+            }
+
+        }
+
+        try {
+            ps = con.prepareStatement("Insert into Employees values(?,?,?,?,?,?,?,?,?)");
+            ps.setString(1, txtUser.getText());
+            ps.setString(2, edpw.encode(txtPass.getText()));
+            ps.setString(3, txtName.getText());
+            if (rdMale.isSelected()) {
+                ps.setString(4, "Nam");
+            } else {
+                ps.setString(4, "Nữ");
+            }
+            ps.setString(5, ft.format(txtBirthday.getDate()));
+            ps.setString(6, txtPhone.getText());
+            ps.setString(7, txtEmail.getText());
+            ps.setString(8, tarAddress.getText());
+            ps.setString(9, txtHinh.getText());
+
+            ps.executeUpdate();
+            tblModel.getDataVector().removeAllElements();
+            loadData();
+
+            JOptionPane.showMessageDialog(this, "Thêm tài khoản thành công!");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ.");
+        }
     }//GEN-LAST:event_btnAddActionPerformed
 
     private void btnLuuActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLuuActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn chắc chắn muốn lưu?");
+        if (click == 0) {
+            while (true) {
+                if (txtPass.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Mật khẩu không được để trống!");
+                    txtPass.grabFocus();
+                    return;
+                } else if (txtPass.getText().trim().length() > 18) {
+                    JOptionPane.showMessageDialog(this, "Mật khẩu không được lớn hơn 18 kí tự!");
+                    txtPass.grabFocus();
+                    return;
+                } else if (txtPass.getText().trim().length() < 6) {
+                    JOptionPane.showMessageDialog(this, "Mật khẩu phải lớn hơn 6 kí tự!");
+                    txtPass.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+
+            }
+            while (true) {
+                if (txtConfirmPass.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Xác nhận mật khẩu không được để trống!");
+                    txtConfirmPass.grabFocus();
+                    return;
+                } else if (!txtConfirmPass.getText().trim().equals(txtPass.getText().trim())) {
+                    JOptionPane.showMessageDialog(this, "Xác nhận mật khẩu phải giống mật khẩu!");
+                    txtConfirmPass.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+
+            }
+            while (true) {
+                if (txtName.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Họ và tên không được để trống!");
+                    txtName.grabFocus();
+                    return;
+                } else if (txtName.getText().trim().length() > 30) {
+                    JOptionPane.showMessageDialog(this, "Họ và tên không được lớn hơn 30 kí tự!");
+                    txtName.grabFocus();
+                    return;
+                }
+                {
+                    break;
+                }
+
+            }
+            while (true) {
+                if (ftError.format(txtBirthday.getDate()).compareTo("2000/01/01") >= 0) {
+                    JOptionPane.showMessageDialog(this, "Nhân viên phải đủ 18 tuổi!");
+                    txtBirthday.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+
+            }
+            if (!txtPhone.getText().trim().equals("")) {
+                while (true) {
+                    if (txtPhone.getText().trim().length() > 11 || txtPhone.getText().trim().length() < 10) {
+                        JOptionPane.showMessageDialog(this, "Số điện thoại gồm 10-11 số.");
+                        txtPhone.grabFocus();
+                        return;
+                    } else if (!txtPhone.getText().trim().matches("0[1-9]{1}\\d{8,9}")) {
+                        JOptionPane.showMessageDialog(this, "Không đúng định dạng số điện thoại ! Ví dụ : 012345678x hoặc 098765432x");
+                        txtPhone.grabFocus();
+                        return;
+                    } else {
+                        break;
+                    }
+
+                }
+            }
+            if (!txtEmail.getText().trim().equals("")) {
+                while (true) {
+                    if (!txtEmail.getText().trim().matches("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@"
+                            + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")) {
+                        JOptionPane.showMessageDialog(this, "Không đúng định dạng Email ! Ví dụ : (abcdef@gmail.com) ");
+                        txtEmail.grabFocus();
+                        return;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            while (true) {
+                if (tarAddress.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Địa chỉ không được để trống!");
+                    tarAddress.grabFocus();
+                    return;
+                } else if (tarAddress.getText().trim().length() > 100) {
+                    JOptionPane.showMessageDialog(this, "Địa chỉ không được lớn hơn 100 kí tự!");
+                    tarAddress.grabFocus();
+                    return;
+                }
+                {
+                    break;
+                }
+
+            }
+            while (true) {
+                if (txtHinh.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Hình ảnh không được để trống!");
+                    txtHinh.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            }
+
+            try {
+                ps = con.prepareStatement("Update Employees set Password=?,NameEmp=?,Gender=?,Birthday=?,Phone=?,Email=?,Address=?,Avatar=? where Username=?");
+
+                ps.setString(9, txtUser.getText());
+                ps.setString(1, edpw.encode(txtPass.getText()));
+                ps.setString(2, txtName.getText());
+                ps.setString(4, ft.format(txtBirthday.getDate()));
+                ps.setString(5, txtPhone.getText());
+                ps.setString(6, txtEmail.getText());
+                ps.setString(7, tarAddress.getText());
+                ps.setString(8, txtHinh.getText());
+                if (rdMale.isSelected()) {
+                    ps.setString(3, "Nam");
+                } else {
+                    ps.setString(3, "Nữ");
+                }
+
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(null, "Lưu thành công ! ");
+                tblModel.getDataVector().removeAllElements();
+                loadData();
+                btnResetActionPerformed(evt);
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ.");
+            }
+        }
     }//GEN-LAST:event_btnLuuActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
