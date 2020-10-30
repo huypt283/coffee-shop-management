@@ -8,7 +8,9 @@ package gui;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import server.DBHelper;
 
 /**
@@ -26,6 +28,25 @@ public class Information extends javax.swing.JFrame {
         initComponents();
         ImageIcon img = new ImageIcon("src//image//Information.png");
         this.setIconImage(img.getImage());
+        try {
+            ps = con.prepareStatement("select * from Employees where NameEmp=?");
+            ps.setString(1, EmpName);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                lbName.setText(rs.getString(3));
+                if (rs.getString(4).equals("Nam")) {
+                    lbGender.setText("Nam");
+                } else {
+                    lbGender.setText("Nữ");
+                }
+                lbBirth.setText(rs.getString(5));
+                lbPhone.setText(rs.getString(6));
+                lbEmail.setText(rs.getString(7));
+                lbAddress.setText(rs.getString(8));
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }
 
     private Information() {

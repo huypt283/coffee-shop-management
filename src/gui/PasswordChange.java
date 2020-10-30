@@ -5,10 +5,13 @@
  */
 package gui;
 
+import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import server.DBHelper;
 
@@ -23,7 +26,7 @@ public class PasswordChange extends javax.swing.JFrame {
     BCryptPasswordEncoder edpw = new BCryptPasswordEncoder();
     DBHelper db = new DBHelper();
     Connection con = db.getCon();
-    boolean isAdmin = false;
+    boolean flag1 = false, flag2 = false, flag3 = false, isAdmin = false;
 
     public PasswordChange(String empName, boolean isAd) {
         isAdmin = isAd;
@@ -200,19 +203,124 @@ public class PasswordChange extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void btnOKActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOKActionPerformed
-        
+        if (flag1 && flag2 && flag3) {
+            try {
+                if (isAdmin) {
+                    ps = con.prepareStatement("Update Administrators set Password=? where Username=?");
+                } else {
+                    ps = con.prepareStatement("Update Employees set Password=? where Username=?");
+                }
+                ps.setString(1, edpw.encode(txtPassNew.getText()));
+                ps.setString(2, lbName.getText());
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(null, "Đổi mật khẩu thành công.");
+                this.setVisible(false);
+            } catch (SQLException e) {
+                System.out.println(e);
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Đổi mật khẩu thất bại!");
+        }
     }//GEN-LAST:event_btnOKActionPerformed
 
     private void txtPassCuCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtPassCuCaretUpdate
-        
+        if (txtPassCu.getText().trim().equals("")) {
+            lbPassCu.setText("");
+            btnOK.setEnabled(false);
+        } else {
+            try {
+                if (isAdmin) {
+                    ps = con.prepareStatement("Select * from Administrators where Username=?");
+                } else {
+                    ps = con.prepareStatement("Select * from Employees where Username=?");
+                }
+                ps.setString(1, lbName.getText());
+                rs = ps.executeQuery();
+                if (rs.next()) {
+                    String pw = rs.getString("Password");
+                    if (!edpw.matches(txtPassCu.getText(), pw)) {
+                        lbPassCu.setText("Sai mật khẩu.");
+                        lbPassCu.setForeground(Color.red);
+                        flag1 = false;
+                        btnOK.setEnabled(false);
+                    } else {
+                        lbPassCu.setText("Đúng mật khẩu.");
+                        lbPassCu.setForeground(Color.blue);
+                        flag1 = true;
+                        btnOK.setEnabled(false);
+                    }
+                } else {
+                    lbPassCu.setText("Sai mật khẩu.");
+                    lbPassCu.setForeground(Color.red);
+                    flag1 = false;
+                    btnOK.setEnabled(false);
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_txtPassCuCaretUpdate
 
     private void txtPassNewCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtPassNewCaretUpdate
-        
+        if (txtPassNew.getText().trim().equals("")) {
+            lbPassNew.setText(" ");
+            btnOK.setEnabled(false);
+        } else if (txtPassNew.getText().equals(txtPassCu.getText())) {
+            lbPassNew.setText("Mật khẩu mới phải khác mật khẩu cũ.");
+            lbPassNew.setForeground(Color.red);
+            btnOK.setEnabled(false);
+        } else {
+            char x;
+            for (int i = 0; i < txtPassNew.getText().length(); i++) {
+                x = txtPassNew.getText().charAt(i);
+                if (x == ' ') {
+                    lbPassNew.setText("Mật khẩu không thể chứa khoảng trắng.");
+                    lbPassNew.setForeground(Color.red);
+                    flag2 = false;
+                    btnOK.setEnabled(false);
+                    return;
+                }
+            }
+            while (true) {
+                if (txtPassNew.getText().length() < 6 || txtPassNew.getText().length() > 18) {
+                    lbPassNew.setText("Độ dài mật khẩu trong khoảng 6-18 kí tự.");
+                    lbPassNew.setForeground(Color.red);
+                    flag2 = false;
+                    btnOK.setEnabled(false);
+                    return;
+                } else {
+                    lbPassNew.setText("Mật khẩu hợp lệ.");
+                    lbPassNew.setForeground(Color.blue);
+                    flag2 = true;
+                    btnOK.setEnabled(false);
+                    break;
+                }
+            }
+        }
     }//GEN-LAST:event_txtPassNewCaretUpdate
 
     private void txtConfirmPassCaretUpdate(javax.swing.event.CaretEvent evt) {//GEN-FIRST:event_txtConfirmPassCaretUpdate
-        
+        if (txtConfirmPass.getText().trim().equals("")) {
+            lbConfirmPass.setText(" ");
+            btnOK.setEnabled(false);
+        } else {
+            while (true) {
+                if (!txtConfirmPass.getText().equals(txtPassNew.getText())) {
+                    lbConfirmPass.setText("Nhập lại mật khẩu phải giống mật khẩu.");
+                    lbConfirmPass.setForeground(Color.red);
+                    flag3 = false;
+                    btnOK.setEnabled(false);
+                    return;
+                } else {
+                    lbConfirmPass.setText("Hợp lệ.");
+                    lbConfirmPass.setForeground(Color.blue);
+                    flag3 = true;
+                    btnOK.setEnabled(true);
+                    break;
+                }
+            }
+        }
     }//GEN-LAST:event_txtConfirmPassCaretUpdate
 
 
