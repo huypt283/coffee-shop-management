@@ -5,11 +5,23 @@
  */
 package gui;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 import server.DBHelper;
 
@@ -32,6 +44,9 @@ public class OrderHistory extends javax.swing.JFrame {
 
     };
     DBHelper db = new DBHelper();
+    SimpleDateFormat ft = new SimpleDateFormat("dd/MM/yyyy");
+    SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+    NumberFormat formatter = new DecimalFormat("#,###");
 
     public OrderHistory() {
         initComponents();
@@ -56,10 +71,107 @@ public class OrderHistory extends javax.swing.JFrame {
         tblModel.addColumn("TK nhân viên");
         tblModel.addColumn("Thành tiền (VNĐ)");
         tblHistory.setModel(tblModel);
+        reloadTbl();
+        loadlbTotal();
         btnResetActionPerformed(null);
     }
 
-    
+    private void loadlbTotal() {
+        int total = 0;
+        int line = tblHistory.getRowCount();
+        for (int i = 0; i < line; i++) {
+            String ThanhTien = (String) tblHistory.getValueAt(i, 10);
+            total += Integer.parseInt(ThanhTien.replaceAll(",", ""));
+        }
+        lbTotal.setText(formatter.format(total) + " VNĐ");
+    }
+
+    private void reloadTbl() {
+        tblModel.getDataVector().removeAllElements();
+        //select theo khách hàng VIP
+        try {
+            ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                    + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                    + "join Customers on OrderDetails.CusName=Customers.CusName "
+                    + "where Orderdetails.CusName != 'Khách vãng lai'");
+            rsKHV = ps.executeQuery();
+            while (rsKHV.next()) {
+                vecKHV = new Vector();
+                vecKHV.add(rsKHV.getString("IDOrder"));
+                vecKHV.add(rsKHV.getString("IDProduct"));
+                vecKHV.add(rsKHV.getString("Quantity"));
+                vecKHV.add(formatter.format(rsKHV.getInt("Price")));
+                vecKHV.add(rsKHV.getString("NamePromo"));
+                vecKHV.add(rsKHV.getString("CusName"));
+                vecKHV.add(rsKHV.getString("Discount"));
+                vecKHV.add(rsKHV.getString("TimeOrder"));
+                vecKHV.add(rsKHV.getString("DateOrder"));
+                vecKHV.add(rsKHV.getString("Username"));
+                int quanKHV = rsKHV.getInt("Quantity");
+                int priceKHV = rsKHV.getInt("Price");
+                int discountKHV = rsKHV.getInt("Discount");
+                int dismoneyKHV = (quanKHV * priceKHV * discountKHV) / 100;
+                int totalKHV = (priceKHV * quanKHV) - dismoneyKHV;
+                vecKHV.add(formatter.format(totalKHV));
+                tblModel.addRow(vecKHV);
+            }
+            tblHistory.setModel(tblModel);
+
+            //select theo CTKM
+            ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                    + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                    + "join Promotions on OrderDetails.NamePromo=Promotions.NamePromo");
+            rsCTKM = ps.executeQuery();
+            while (rsCTKM.next()) {
+                vecCTKM = new Vector();
+                vecCTKM.add(rsCTKM.getString("IDOrder"));
+                vecCTKM.add(rsCTKM.getString("IDProduct"));
+                vecCTKM.add(rsCTKM.getString("Quantity"));
+                vecCTKM.add(formatter.format(rsCTKM.getInt("Price")));
+                vecCTKM.add(rsCTKM.getString("NamePromo"));
+                vecCTKM.add(rsCTKM.getString("CusName"));
+                vecCTKM.add(rsCTKM.getString("DiscountPromo"));
+                vecCTKM.add(rsCTKM.getString("TimeOrder"));
+                vecCTKM.add(rsCTKM.getString("DateOrder"));
+                vecCTKM.add(rsCTKM.getString("Username"));
+                int quanCTKM = rsCTKM.getInt("Quantity");
+                int priceCTKM = rsCTKM.getInt("Price");
+                int discountCTKM = rsCTKM.getInt("DiscountPromo");
+                int dismoneyCTKM = (quanCTKM * priceCTKM * discountCTKM) / 100;
+                int totalCTKM = (priceCTKM * quanCTKM) - dismoneyCTKM;
+                vecCTKM.add(formatter.format(totalCTKM));
+                tblModel.addRow(vecCTKM);
+            }
+            tblHistory.setModel(tblModel);
+
+            //select theo không áp dụng CTKM
+            ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                    + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                    + "where NamePromo='Không có'");
+            rsKhongCTKM = ps.executeQuery();
+            while (rsKhongCTKM.next()) {
+                vecKhongCTKM = new Vector();
+                vecKhongCTKM.add(rsKhongCTKM.getString("IDOrder"));
+                vecKhongCTKM.add(rsKhongCTKM.getString("IDProduct"));
+                vecKhongCTKM.add(rsKhongCTKM.getString("Quantity"));
+                vecKhongCTKM.add(formatter.format(rsKhongCTKM.getInt("Price")));
+                vecKhongCTKM.add(rsKhongCTKM.getString("NamePromo"));
+                vecKhongCTKM.add(rsKhongCTKM.getString("CusName"));
+                vecKhongCTKM.add("0");
+                vecKhongCTKM.add(rsKhongCTKM.getString("TimeOrder"));
+                vecKhongCTKM.add(rsKhongCTKM.getString("DateOrder"));
+                vecKhongCTKM.add(rsKhongCTKM.getString("Username"));
+                int quanKhongCTKM = rsKhongCTKM.getInt("Quantity");
+                int priceKhongCTKM = rsKhongCTKM.getInt("Price");
+                int totalKhongCTKM = priceKhongCTKM * quanKhongCTKM;
+                vecKhongCTKM.add(formatter.format(totalKhongCTKM));
+                tblModel.addRow(vecKhongCTKM);
+            }
+            tblHistory.setModel(tblModel);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -185,15 +297,178 @@ public class OrderHistory extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchActionPerformed
-        
+        String date = ft.format(txtdate.getDate());
+//        String name = (String) cbEmp.getSelectedItem();
+//        if (cbEmp.getSelectedIndex() == -1) {
+//            JOptionPane.showMessageDialog(null, "Tài khoản nhân viên không được để trống.");
+//            btnPrint.setEnabled(false);
+//        } else {
+        try {
+            ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                    + "where DateOrder = '" + date + "'");
+            rs = ps.executeQuery();
+            if (!rs.next()) {
+                JOptionPane.showMessageDialog(null, "Chưa bán được sản phẩm nào trong ngày " + date + ".");
+                btnResetActionPerformed(evt);
+            } else {
+                btnPrint.setEnabled(true);
+                tblModel.getDataVector().removeAllElements();
+                //select theo khách hàng VIP
+
+                ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                        + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                        + "join Customers on OrderDetails.CusName=Customers.CusName  "
+                        + "where Orderdetails.CusName != 'Khách vãng lai' and DateOrder = '" + date + "'");
+                rsKHV = ps.executeQuery();
+                while (rsKHV.next()) {
+                    vecKHV = new Vector();
+                    vecKHV.add(rsKHV.getString("IDOrder"));
+                    vecKHV.add(rsKHV.getString("IDProduct"));
+                    vecKHV.add(rsKHV.getString("Quantity"));
+                    vecKHV.add(formatter.format(rsKHV.getInt("Price")));
+                    vecKHV.add(rsKHV.getString("NamePromo"));
+                    vecKHV.add(rsKHV.getString("CusName"));
+                    vecKHV.add(rsKHV.getString("Discount"));
+                    vecKHV.add(rsKHV.getString("TimeOrder"));
+                    vecKHV.add(rsKHV.getString("DateOrder"));
+                    vecKHV.add(rsKHV.getString("Username"));
+                    int quanKHV = rsKHV.getInt("Quantity");
+                    int priceKHV = rsKHV.getInt("Price");
+                    int discountKHV = rsKHV.getInt("Discount");
+                    int dismoneyKHV = (quanKHV * priceKHV * discountKHV) / 100;
+                    int totalKHV = (priceKHV * quanKHV) - dismoneyKHV;
+                    vecKHV.add(formatter.format(totalKHV));
+                    tblModel.addRow(vecKHV);
+                }
+                tblHistory.setModel(tblModel);
+
+                //select theo CTKM
+                ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                        + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                        + "join Promotions on OrderDetails.NamePromo=Promotions.NamePromo "
+                        + "where DateOrder = '" + date + "'");
+                rsCTKM = ps.executeQuery();
+                while (rsCTKM.next()) {
+                    vecCTKM = new Vector();
+                    vecCTKM.add(rsCTKM.getString("IDOrder"));
+                    vecCTKM.add(rsCTKM.getString("IDProduct"));
+                    vecCTKM.add(rsCTKM.getString("Quantity"));
+                    vecCTKM.add(formatter.format(rsCTKM.getInt("Price")));
+                    vecCTKM.add(rsCTKM.getString("NamePromo"));
+                    vecCTKM.add(rsCTKM.getString("CusName"));
+                    vecCTKM.add(rsCTKM.getString("DiscountPromo"));
+                    vecCTKM.add(rsCTKM.getString("TimeOrder"));
+                    vecCTKM.add(rsCTKM.getString("DateOrder"));
+                    vecCTKM.add(rsCTKM.getString("Username"));
+                    int quanCTKM = rsCTKM.getInt("Quantity");
+                    int priceCTKM = rsCTKM.getInt("Price");
+                    int discountCTKM = rsCTKM.getInt("DiscountPromo");
+                    int dismoneyCTKM = (quanCTKM * priceCTKM * discountCTKM) / 100;
+                    int totalCTKM = (priceCTKM * quanCTKM) - dismoneyCTKM;
+                    vecCTKM.add(formatter.format(totalCTKM));
+                    tblModel.addRow(vecCTKM);
+                }
+                tblHistory.setModel(tblModel);
+
+                //select theo không áp dụng CTKM
+                ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder "
+                        + "join Products on OrderDetails.IDProduct=Products.IDProduct "
+                        + "where NamePromo='Không có' and DateOrder = '" + date + "'");
+                rsKhongCTKM = ps.executeQuery();
+                while (rsKhongCTKM.next()) {
+                    vecKhongCTKM = new Vector();
+                    vecKhongCTKM.add(rsKhongCTKM.getString("IDOrder"));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("IDProduct"));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("Quantity"));
+                    vecKhongCTKM.add(formatter.format(rsKhongCTKM.getInt("Price")));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("NamePromo"));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("CusName"));
+                    vecKhongCTKM.add("0");
+                    vecKhongCTKM.add(rsKhongCTKM.getString("TimeOrder"));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("DateOrder"));
+                    vecKhongCTKM.add(rsKhongCTKM.getString("Username"));
+                    int quanKhongCTKM = rsKhongCTKM.getInt("Quantity");
+                    int priceKhongCTKM = rsKhongCTKM.getInt("Price");
+                    int totalKhongCTKM = priceKhongCTKM * quanKhongCTKM;
+                    vecKhongCTKM.add(formatter.format(totalKhongCTKM));
+                    tblModel.addRow(vecKhongCTKM);
+                }
+                tblHistory.setModel(tblModel);
+
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+//        }
+        loadlbTotal();
     }//GEN-LAST:event_btnSearchActionPerformed
 
     private void btnResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResetActionPerformed
-        
+        reloadTbl();
+        loadlbTotal();
+        btnPrint.setEnabled(false);
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPrintActionPerformed
-        
+        //xóa file txt
+        File file = new File("History.txt");
+        file.delete();
+        //Viết vào file txt
+        try {
+            Date now = new Date();
+            Writer b = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("History.txt"), "UTF8"));
+            b.write("THE GARDEN COFFEE\r\n\r\n");
+            b.write("Địa chỉ: ĐHCNHN Cơ sở 1\r\n");
+            b.write("SĐT: 0979859283\r\n");
+            b.write("Thời gian: " + time.format(now) + "\r\n\r\n");
+            b.write("\t\t\t\t\tBẢNG THỐNG KÊ BÁN HÀNG NGÀY " + ft.format(txtdate.getDate()) + "\r\n");
+//            b.write("Tài khoản: " + cbEmp.getSelectedItem() + "\r\n");
+//            try {
+//                ps = con.prepareStatement("Select * from Employees where Username=?");
+//                ps.setString(1, (String) cbEmp.getSelectedItem());
+//                rsInfoEmp = ps.executeQuery();
+//                if (rsInfoEmp.next()) {
+//                    b.write("Tên nhân viên: " + rsInfoEmp.getString("NameEmp") + "\r\n\r\n");
+//                }
+//            } catch (SQLException ex) {
+//            }
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+            b.write("Mã ĐH\tMã SP\tSố lượng (ly)\tĐơn giá (VNĐ)\tTên CTKM\tMã khách hàng\tChiết khấu (%)\tThời gian\tThành tiền (VNĐ)\r\n");
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+
+            int line = tblHistory.getRowCount();
+            for (int i = 0; i < line; i++) {
+                String s1 = (String) tblHistory.getValueAt(i, 0);
+                String s2 = (String) tblHistory.getValueAt(i, 1);
+                String s3 = (String) tblHistory.getValueAt(i, 2);
+                String s4 = (String) tblHistory.getValueAt(i, 3);
+                String s5 = (String) tblHistory.getValueAt(i, 4);
+                String MKH = (String) tblHistory.getValueAt(i, 5);
+                String s6;
+                if (!MKH.equals("Khách vãng lai")) {
+                    s6 = (String) tblHistory.getValueAt(i, 5) + "\t";
+                } else {
+                    s6 = (String) tblHistory.getValueAt(i, 5);
+                }
+                String s7 = (String) tblHistory.getValueAt(i, 6);
+                String s8 = (String) tblHistory.getValueAt(i, 7);
+                String s11 = (String) tblHistory.getValueAt(i, 10);
+                b.write(s1 + "\t" + s2 + "\t" + s3 + "\t\t" + s4 + "\t\t" + s5 + "\t" + s6 + "\t" + s7 + "\t\t" + s8 + "\t" + s11 + "\r\n");
+            }
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+            b.write("Tổng tiền: " + lbTotal.getText());
+            b.close();
+        } catch (IOException | NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        //Mở file txt
+        Runtime run = Runtime.getRuntime();
+        try {
+            run.exec("notepad History.txt");
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        btnResetActionPerformed(evt);
     }//GEN-LAST:event_btnPrintActionPerformed
 
 

@@ -745,7 +745,70 @@ public class Product extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnAddSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddSPActionPerformed
-        
+
+        int click = JOptionPane.showConfirmDialog(null, "Bạn có muốn thêm sản phẩm không?");
+        if (click == 0) {
+            try {
+                psAdd1 = conLoaiSP.prepareStatement("select * from ProductTypes where TypeName=? and Size=?");
+                psAdd1.setString(1, (String) cbNameType.getSelectedItem());
+                psAdd1.setString(2, (String) cbKichCo.getSelectedItem());
+                rsAdd1 = psAdd1.executeQuery();
+                if (rsAdd1.next()) {
+                    String IDType = rsAdd1.getString("IDType");
+
+                    while (true) {
+                        if (txtNameproduct.getText().trim().equals("")) {
+                            JOptionPane.showMessageDialog(this, "Tên không được để trống");
+                            txtNameproduct.grabFocus();
+                            return;
+                        } else {
+                            break;
+                        }
+                    }
+                    while (true) {
+                        if (txtPrice.getText().trim().equals("")) {
+                            JOptionPane.showMessageDialog(this, "Giá không được để trống");
+                            txtPrice.grabFocus();
+                            return;
+                        } else if (!txtPrice.getText().trim().matches("[0-9]+")) {
+                            JOptionPane.showMessageDialog(this, "Giá phải là số và lớn hơn 0");
+                            txtPrice.grabFocus();
+                            return;
+                        } else if ((Integer.parseInt(txtPrice.getText())) <= 0 || Integer.parseInt(txtPrice.getText()) > 200000) {
+                            JOptionPane.showMessageDialog(this, "Giá phải lớn hơn 0 và nhỏ hơn 200.000");
+                            txtPrice.grabFocus();
+                            return;
+                        } else {
+                            break;
+                        }
+                    }
+                    int line = tblSP.getRowCount();
+                    while (true) {
+                        for (int i = 0; i < line; i++) {
+                            if (txtNameproduct.getText().equals(tblSP.getValueAt(i, 1)) && tblSP.getValueAt(i, 2).equals(IDType) && cbKichCo.getSelectedItem().equals(tblSP.getValueAt(i, 4))) {
+                                JOptionPane.showMessageDialog(null, "Sản phẩm Đã tồn tại");
+                                return;
+                            }
+                        }
+                        break;
+                    }
+
+                    psAdd2 = conSP.prepareStatement("Insert into Products(ProductName,IDType,Price) values(?,?,?)");
+                    psAdd2.setString(1, txtNameproduct.getText());
+                    psAdd2.setInt(2, Integer.parseInt(IDType));
+                    psAdd2.setInt(3, Integer.parseInt(txtPrice.getText()));
+                    psAdd2.executeUpdate();
+                    tblModelSP.getDataVector().removeAllElements();
+                    loadDataSP();
+                    btnResetActionPerformed(null);
+                    JOptionPane.showMessageDialog(null, "Thêm sản phẩm thành công");
+                } else {
+                    JOptionPane.showMessageDialog(null, "Không tìm thấy nhóm sản phẩm.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, e);
+            }
+        }
     }//GEN-LAST:event_btnAddSPActionPerformed
 
     private void btnResetSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResetSPActionPerformed
@@ -762,11 +825,58 @@ public class Product extends javax.swing.JFrame {
     }//GEN-LAST:event_btnResetSPActionPerformed
 
     private void btnUpdateSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUpdateSPActionPerformed
-        
+        int a = JOptionPane.showConfirmDialog(null, "Bạn có muốn sửa sản phẩm không?");
+        if (a == 0) {
+            try {
+                psLoaiSP = conSP.prepareStatement("select * from ProductTypes where TypeName=? and Size=?");
+                psLoaiSP.setString(1, (String) cbNameType.getSelectedItem());
+                psLoaiSP.setString(2, (String) cbKichCo.getSelectedItem());
+                rsLoaiSP = psLoaiSP.executeQuery();
+                if (rsLoaiSP.next()) {
+                    String sql = "Update Products set ProductName=?, IDType=?, Price=? where IDProduct=?";
+                    psSP = conSP.prepareStatement(sql);
+                    psSP.setString(1, txtNameproduct.getText());
+                    psSP.setInt(2, rsLoaiSP.getInt("IDType"));
+                    psSP.setInt(3, Integer.parseInt(txtPrice.getText()));
+                    psSP.setInt(4, Integer.parseInt(txtIDProduct.getText()));
+                    psSP.executeUpdate();
+                    tblModelSP.getDataVector().removeAllElements();
+                    loadDataSP();
+                    btnResetActionPerformed(null);
+                    JOptionPane.showMessageDialog(null, "Cập nhật sản phẩm thành công");
+                } else {
+                    JOptionPane.showMessageDialog(null, "Không tìm thấy nhóm sản phẩm.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_btnUpdateSPActionPerformed
 
     private void btnDeleteSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDeleteSPActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn có muốn xóa sản phẩm không?");
+        if (click == 0) {
+            try {
+                psSP = conSP.prepareStatement("select * from OrderDetails where IDProduct=?");
+                psSP.setInt(1, Integer.parseInt(txtIDProduct.getText()));
+                rsIDPr = psSP.executeQuery();
+                if (rsIDPr.next()) {
+                    JOptionPane.showMessageDialog(null, "Sản phẩm đã có đơn hàng, không thể xóa sản phẩm.");
+                } else {
+                    String sql = "Delete from Products where IDProduct=?";
+                    psSP = conSP.prepareStatement(sql);
+                    psSP.setInt(1, Integer.parseInt(txtIDProduct.getText()));
+                    psSP.executeUpdate();
+                    tblModelSP.getDataVector().removeAllElements();
+                    loadDataSP();
+                    btnResetActionPerformed(null);
+                    JOptionPane.showMessageDialog(null, "Xóa sản phẩm thành công.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+
+        }
     }//GEN-LAST:event_btnDeleteSPActionPerformed
 
     private void tblSPMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tblSPMouseClicked
@@ -815,19 +925,114 @@ public class Product extends javax.swing.JFrame {
     }//GEN-LAST:event_tblLoaiSPMouseClicked
 
     private void btnXoaLoaiSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnXoaLoaiSPActionPerformed
-        
+        try {
+            int idType = Integer.parseInt(txtIDProductType.getText());
+            psLoaiSP = conLoaiSP.prepareStatement("select * from Products where IDType=?");
+            psLoaiSP.setInt(1, idType);
+            rsLoaiSP = psLoaiSP.executeQuery();
+            if (!rsLoaiSP.next()) {
+                int click = JOptionPane.showConfirmDialog(null, "Bạn có muốn xóa loại sản phẩm không?");
+                if (click == 0) {
+                    try {
+                        psLoaiSP = conLoaiSP.prepareStatement("Delete from ProductTypes where IDType=?");
+                        psLoaiSP.setInt(1, idType);
+                        psLoaiSP.executeUpdate();
+                        tblModelLoaiSP.getDataVector().removeAllElements();
+                        loadDataLoaiSP();
+                        btnResetActionPerformed(null);
+                        JOptionPane.showMessageDialog(null, "Xóa loại sản phẩm thành công");
+                    } catch (SQLException ex) {
+                        JOptionPane.showMessageDialog(null, "Xóa loại sản phẩm không thành công");
+                    }
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Sản phẩm còn tồn tại, không thể xóa");
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+        tblModelLoaiSP.getDataVector().removeAllElements();
+        loadDataLoaiSP();
     }//GEN-LAST:event_btnXoaLoaiSPActionPerformed
 
     private void btnSuaLoaiSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSuaLoaiSPActionPerformed
-        
+        int a = JOptionPane.showConfirmDialog(null, "Bạn có muốn sửa loại sản phẩm không?");
+        if (a == 0) {
+            try {
+                psLoaiSP = conLoaiSP.prepareStatement("select * from ProductTypes where TypeName=? and Size=?");
+                psLoaiSP.setString(1, (String) txtNameType.getText());
+                psLoaiSP.setString(2, (String) cbSizeType.getSelectedItem());
+                rsLoaiSP = psLoaiSP.executeQuery();
+                if (rsLoaiSP.next()) {
+                    JOptionPane.showMessageDialog(null, "Loại sản phẩm với kích cỡ này đã tồn tại");
+                } else {
+                    psLoaiSP = conLoaiSP.prepareStatement("Update ProductTypes set TypeName=?, Size=? where IDType=?");
+                    psLoaiSP.setString(1, txtNameType.getText());
+                    psLoaiSP.setString(2, (String) cbSizeType.getSelectedItem());
+                    psLoaiSP.setInt(3, Integer.parseInt(txtIDProductType.getText()));
+                    psLoaiSP.executeUpdate();
+                    tblModelLoaiSP.getDataVector().removeAllElements();
+                    loadDataLoaiSP();
+                    btnResetActionPerformed(null);
+                    JOptionPane.showMessageDialog(null, "Sửa loại sản phẩm thành công");
+                    tblModelLoaiSP.getDataVector().removeAllElements();
+                    loadDataLoaiSP();
+
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Sửa loại sản phẩm không thành công");
+        }
     }//GEN-LAST:event_btnSuaLoaiSPActionPerformed
 
     private void btnResetLoaiSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResetLoaiSPActionPerformed
-        
+        txtIDProductType.setText("");
+        txtNameType.setText("");
+        cbSizeType.setSelectedIndex(0);
+        txtIDProductType.setEnabled(false);
+        btnXoaLoaiSP.setEnabled(false);
+        btnSuaLoaiSP.setEnabled(false);
+        btnThemLoaiSP.setEnabled(true);
     }//GEN-LAST:event_btnResetLoaiSPActionPerformed
 
     private void btnThemLoaiSPActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnThemLoaiSPActionPerformed
-        
+        int line = tblModelLoaiSP.getRowCount();
+        int click = JOptionPane.showConfirmDialog(null, "Bạn có muốn thêm loại sản phẩm không?");
+        if (click == 0) {
+            try {
+
+                while (true) {
+                    for (int i = 0; i < line; i++) {
+                        if (txtNameType.getText().equals(tblModelLoaiSP.getValueAt(i, 1))
+                                && (cbSizeType.getSelectedItem().equals(tblModelLoaiSP.getValueAt(i, 2)))) {
+                            JOptionPane.showMessageDialog(this, "Loại sản phẩm với kích thước này đã tồn tại");
+                            txtNameType.grabFocus();
+                            return;
+                        }
+                    }
+
+                    if (txtNameType.getText().trim().equals("")) {
+                        JOptionPane.showMessageDialog(this, "Tên không được để trống");
+                        txtNameType.grabFocus();
+                        return;
+                    } else {
+                        break;
+                    }
+                }
+                psLoaiSP = conLoaiSP.prepareStatement("Insert into ProductTypes(TypeName, Size) values(?,?)");
+                psLoaiSP.setString(1, txtNameType.getText());
+                psLoaiSP.setString(2, (String) cbSizeType.getSelectedItem());
+                psLoaiSP.executeUpdate();
+                tblModelLoaiSP.getDataVector().removeAllElements();
+                loadDataLoaiSP();
+                btnResetActionPerformed(null);
+                JOptionPane.showMessageDialog(null, "Thêm loại sản phẩm thành công");
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_btnThemLoaiSPActionPerformed
 
     private void jTabbedPane1MouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTabbedPane1MouseClicked
@@ -835,15 +1040,222 @@ public class Product extends javax.swing.JFrame {
     }//GEN-LAST:event_jTabbedPane1MouseClicked
 
     private void cbChonTimKiemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cbChonTimKiemActionPerformed
-        
+        PanelTimKiem.setVisible(true);
+        if (cbChonTimKiem.getSelectedIndex() == 0) {
+            cbTen.setVisible(false);
+            txtGiaTu.setVisible(false);
+            txtDen.setVisible(false);
+            cbLoaiTK.setVisible(false);
+            cbKichThuoc.setVisible(false);
+            btnTimKiem.setVisible(false);
+            lbDen.setVisible(false);
+            lbGiaTu.setVisible(false);
+            lbLoai.setVisible(false);
+            lbNhom.setVisible(false);
+            lbVND1.setVisible(false);
+            lbVND.setVisible(false);
+
+        } else if (cbChonTimKiem.getSelectedItem().equals("Tên")) {
+            cbTen.setVisible(true);
+            txtGiaTu.setVisible(false);
+            txtDen.setVisible(false);
+            cbLoaiTK.setVisible(false);
+            cbKichThuoc.setVisible(false);
+            btnTimKiem.setVisible(true);
+            lbDen.setVisible(false);
+            lbGiaTu.setVisible(false);
+            lbLoai.setVisible(false);
+            lbNhom.setVisible(false);
+            lbVND1.setVisible(false);
+            lbVND.setVisible(false);
+
+            cbTen.removeAllItems();
+            try {
+                String url = "Select DISTINCT ProductName from Products";
+                psTen = conSP.prepareStatement(url);
+                rsTen = psTen.executeQuery();
+//                vecTen = new Vector();
+                while (rsTen.next()) {
+                    cbTen.addItem(rsTen.getString("ProductName"));
+                }
+//                JTextField text = (JTextField) cbTen.getEditor().getEditorComponent();
+//                text.setText("");
+//                text.addKeyListener(new ComboListener(cbTen, vecTen));
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        } else if (cbChonTimKiem.getSelectedItem().equals("Giá")) {
+            txtGiaTu.setVisible(true);
+            txtDen.setVisible(true);
+            cbTen.setVisible(false);
+            cbLoaiTK.setVisible(false);
+            cbKichThuoc.setVisible(false);
+            cbTen.setVisible(false);
+            btnTimKiem.setVisible(true);
+
+            lbDen.setVisible(true);
+            lbGiaTu.setVisible(true);
+            lbLoai.setVisible(false);
+            lbNhom.setVisible(false);
+            lbVND1.setVisible(true);
+            lbVND.setVisible(true);
+        } else if (cbChonTimKiem.getSelectedItem().equals("Nhóm")) {
+            txtGiaTu.setVisible(false);
+            txtDen.setVisible(false);
+            cbTen.setVisible(false);
+            cbLoaiTK.setVisible(true);
+            cbKichThuoc.setVisible(true);
+            btnTimKiem.setVisible(true);
+            lbDen.setVisible(false);
+            lbGiaTu.setVisible(false);
+            lbLoai.setVisible(true);
+            lbNhom.setVisible(true);
+            lbVND1.setVisible(false);
+            lbVND.setVisible(false);
+
+            cbLoaiTK.removeAllItems();
+            try {
+                String sql = "select Distinct TypeName from ProductTypes";
+                psSP = conSP.prepareStatement(sql);
+                rsSP = psSP.executeQuery();
+                while (rsSP.next()) {
+                    cbLoaiTK.addItem(rsSP.getString("TypeName"));
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_cbChonTimKiemActionPerformed
 
     private void btnTimKiemActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTimKiemActionPerformed
-        
+        if (cbChonTimKiem.getSelectedItem().equals("Tên")) {
+            tblModelSP.getDataVector().removeAllElements();
+            try {
+                psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where ProductName=?");
+                psTK.setString(1, (String) cbTen.getSelectedItem());
+                rsTK = psTK.executeQuery();
+                if (rsTK.next()) {
+                    psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where ProductName=?");
+                    psTK.setString(1, (String) cbTen.getSelectedItem());
+                    rsTK = psTK.executeQuery();
+                    while (rsTK.next()) {
+                        rowTen = new Vector();
+                        rowTen.add(rsTK.getString("IDProduct"));
+                        rowTen.add(rsTK.getString("ProductName"));
+                        rowTen.add(rsTK.getString("IDType"));
+                        rowTen.add(rsTK.getString("Price"));
+                        rowTen.add(rsTK.getString("Size"));
+                        tblModelSP.addRow(rowTen);
+                    }
+                    tblSP.setModel(tblModelSP);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Không tìm được sản phẩm");
+                    loadDataSP();
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        } else if (cbChonTimKiem.getSelectedItem().equals("Giá")) {
+            while (true) {
+                if (txtGiaTu.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Giá không được để trống");
+                    txtGiaTu.grabFocus();
+                    return;
+                } else if (!txtGiaTu.getText().trim().matches("[0-9]+")) {
+                    JOptionPane.showMessageDialog(this, "Giá phải là số");
+                    txtGiaTu.grabFocus();
+                    return;
+                } else if ((Integer.parseInt(txtGiaTu.getText())) <= 0 || Integer.parseInt(txtGiaTu.getText()) > 200000) {
+                    JOptionPane.showMessageDialog(this, "Giá phải lớn hơn 0 và nhỏ hơn 200.000");
+                    txtGiaTu.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            }
+            while (true) {
+                if (txtDen.getText().trim().equals("")) {
+                    JOptionPane.showMessageDialog(this, "Giá không được để trống");
+                    txtDen.grabFocus();
+                    return;
+                } else if (!txtDen.getText().trim().matches("[0-9]+")) {
+                    JOptionPane.showMessageDialog(this, "Giá phải là số");
+                    txtDen.grabFocus();
+                    return;
+                } else if ((Integer.parseInt(txtDen.getText())) <= 0 || Integer.parseInt(txtDen.getText()) > 200000) {
+                    JOptionPane.showMessageDialog(this, "Giá phải lớn hơn 0 và nhỏ hơn 200.000");
+                    txtPrice.grabFocus();
+                    return;
+                } else if ((Integer.parseInt(txtGiaTu.getText())) >= Integer.parseInt(txtDen.getText())) {
+                    JOptionPane.showMessageDialog(this, "Giá phải từ nhỏ đến lớn");
+                    txtDen.grabFocus();
+                    return;
+                } else {
+                    break;
+                }
+            }
+            tblModelSP.getDataVector().removeAllElements();
+            try {
+                psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where Price >= ? and Price <= ?");
+                psTK.setInt(1, Integer.parseInt(txtGiaTu.getText().trim()));
+                psTK.setInt(2, Integer.parseInt(txtDen.getText().trim()));
+                rsTK = psTK.executeQuery();
+                if (rsTK.next()) {
+                    psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where Price >= ? and Price <= ?");
+                    psTK.setInt(1, Integer.parseInt(txtGiaTu.getText().trim()));
+                    psTK.setInt(2, Integer.parseInt(txtDen.getText().trim()));
+                    rsTK = psTK.executeQuery();
+                    while (rsTK.next()) {
+                        rowTen = new Vector();
+                        rowTen.add(rsTK.getString("IDProduct"));
+                        rowTen.add(rsTK.getString("ProductName"));
+                        rowTen.add(rsTK.getString("IDType"));
+                        rowTen.add(rsTK.getString("Price"));
+                        rowTen.add(rsTK.getString("Size"));
+                        tblModelSP.addRow(rowTen);
+                    }
+                    tblSP.setModel(tblModelSP);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Không tìm được sản phẩm");
+                    loadDataSP();
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        } else if (cbChonTimKiem.getSelectedItem().equals("Nhóm")) {
+            tblModelSP.getDataVector().removeAllElements();
+            try {
+                psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where TypeName= ? and Size= ?");
+                psTK.setString(1, (String) cbLoaiTK.getSelectedItem());
+                psTK.setString(2, (String) cbKichThuoc.getSelectedItem());
+                rsTK = psTK.executeQuery();
+                if (rsTK.next()) {
+                    psTK = conSP.prepareStatement("select * from Products inner join ProductTypes on Products.IDType=ProductTypes.IDType where TypeName= ? and Size= ?");
+                    psTK.setString(1, (String) cbLoaiTK.getSelectedItem());
+                    psTK.setString(2, (String) cbKichThuoc.getSelectedItem());
+                    rsTK = psTK.executeQuery();
+                    while (rsTK.next()) {
+                        rowTen = new Vector();
+                        rowTen.add(rsTK.getString("IDProduct"));
+                        rowTen.add(rsTK.getString("ProductName"));
+                        rowTen.add(rsTK.getString("IDType"));
+                        rowTen.add(rsTK.getString("Price"));
+                        rowTen.add(rsTK.getString("Size"));
+                        tblModelSP.addRow(rowTen);
+                    }
+                    tblSP.setModel(tblModelSP);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Không tìm được sản phẩm");
+                    loadDataSP();
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_btnTimKiemActionPerformed
 
     private void btnThongkeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnThongkeActionPerformed
-        
+        new Statistic().setVisible(true);
     }//GEN-LAST:event_btnThongkeActionPerformed
 
 

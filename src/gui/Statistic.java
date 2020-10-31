@@ -7,11 +7,23 @@ package gui;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -26,6 +38,10 @@ public class Statistic extends javax.swing.JFrame {
     server.DBHelper db = new server.DBHelper();
     DefaultTableModel tblModel;
     Vector row, vecTK, vecSPBan;
+    SimpleDateFormat ft = new SimpleDateFormat("dd/MM/yyyy");
+    SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss dd/MM/yyyy");
+    NumberFormat formatter = new DecimalFormat("#,###");
+    NumberFormat nft = new DecimalFormat("#,###");
 
     public Statistic() {
         initComponents();
@@ -45,9 +61,50 @@ public class Statistic extends javax.swing.JFrame {
         tblModel.addColumn("Loại");
         tblModel.addColumn("Số lượng");
         tblThongKe.setModel(tblModel);
+        loadBangSP();
+        loadCBTK();
+
     }
 
-    
+    private void loadBangSP() {
+        try {
+            con = db.getCon();
+            ps = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder"
+                    + " join Products on OrderDetails.IDProduct=Products.IDProduct Order by OrderDetails.IDOrder DESC");
+            rs = ps.executeQuery();
+            int price, quantity, into;
+            while (rs.next()) {
+                row = new Vector();
+                price = Integer.parseInt(rs.getString("Price"));
+                quantity = Integer.parseInt(rs.getString("Quantity"));
+                into = price * quantity;
+                row.add(rs.getString("IDOrder"));
+                row.add(rs.getString("ProductName"));
+                row.add(rs.getString("Price"));
+                row.add(rs.getString("IDType"));
+                row.add(rs.getString("Quantity"));
+                tblModel.addRow(row);
+            }
+            tblThongKe.setModel(tblModel);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
+
+    private void loadCBTK() {
+        cbTimKiemTK.removeAllItems();
+        try {
+            String url = "Select DISTINCT ProductName from Products";
+            ps = con.prepareStatement(url);
+            rsTK = ps.executeQuery();
+            vecTK = new Vector();
+            while (rsTK.next()) {
+                cbTimKiemTK.addItem(rsTK.getString("ProductName"));
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -271,19 +328,172 @@ public class Statistic extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnTimKiemTKActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnTimKiemTKActionPerformed
-        
+        tblModel.getDataVector().removeAllElements();
+        String s1 = (String) cbTimKiemTK.getSelectedItem();
+        if (cbTimKiemTK.getSelectedIndex() == -1) {
+            JOptionPane.showMessageDialog(null, "Tên sản phẩm không được để trống.");
+            btnPrint.setEnabled(false);
+        } else {
+            try {
+
+                psTK = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder"
+                        + " join Products on OrderDetails.IDProduct=Products.IDProduct where ProductName=?");
+                psTK.setString(1, (String) cbTimKiemTK.getSelectedItem());
+                rsTK = psTK.executeQuery();
+                if (rsTK.next()) {
+                    psTK = con.prepareStatement("select * from OrderDetails join Orders on OrderDetails.IDOrder=Orders.IDOrder"
+                            + " join Products on OrderDetails.IDProduct=Products.IDProduct where ProductName=?");
+                    psTK.setString(1, (String) cbTimKiemTK.getSelectedItem());
+                    rsTK = psTK.executeQuery();
+                    while (rsTK.next()) {
+                        vecTK = new Vector();
+                        vecTK.add(rsTK.getString("IDOrder"));
+                        vecTK.add(rsTK.getString("ProductName"));
+                        vecTK.add(rsTK.getString("Price"));
+                        vecTK.add(rsTK.getString("IDType"));
+                        vecTK.add(rsTK.getString("Quantity"));
+                        tblModel.addRow(vecTK);
+                    }
+                    tblThongKe.setModel(tblModel);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Sản phẩm chưa được bán");
+                    loadBangSP();
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+            int line = tblThongKe.getRowCount();
+            int tong = 0, tinhtien = 0;
+            for (int i = 0; i < line; i++) {
+//            if (tblThongKe.getValueAt(i, 1).equals(cbTimKiemTK.getSelectedItem())) {
+                int SL = Integer.parseInt((String) tblThongKe.getValueAt(i, 4));
+                int tien = Integer.parseInt((String) tblThongKe.getValueAt(i, 2));
+                tong += SL;
+                tinhtien += tien;
+//                spQuantity.setValue(quanTotal);
+//            }
+            }
+            txtGia.setText(String.valueOf(nft.format(tinhtien)));
+            txtSoLuong.setText(String.valueOf(tong));
+            cbTimKiemTK.setSelectedIndex(-1);
+        }
+        btnPrint.setEnabled(true);
     }//GEN-LAST:event_btnTimKiemTKActionPerformed
 
     private void btnResetActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnResetActionPerformed
-        
+        txtSoLuong.setText("");
+        txtGia.setText("");
+        cbTimKiemTK.setSelectedIndex(-1);
+        tblModel.getDataVector().removeAllElements();
+        loadBangSP();
+        btnPrint.setEnabled(false);
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnPrintActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnPrintActionPerformed
-        
+        File file = new File("ThongKe.txt");
+        file.delete();
+        //Viết vào file txt
+        try {
+            Date now = new Date();
+            Writer b = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("ThongKe.txt"), "UTF8"));
+            b.write("\t\t\t\t\t\tTHE GARDEN COFFEE\r\n\r\n");
+            b.write("\t\t\t\t\tĐịa chỉ: ĐHCNHN Cơ sở 1\r\n");
+            b.write("\t\t\t\t\t\tSĐT: 0979859283\r\n");
+            b.write("\t\t\t\t\tThời gian: " + time.format(now) + "\r\n\r\n");
+            b.write("\t\t\t\t\tBẢNG THỐNG KÊ SẢN PHẨM " + ft.format(txtStart.getDate()) + "\r\n");
+//            try {
+//                ps = con.prepareStatement("Select DISTINCT ProductName from Products");
+////                ps = con.prepareStatement("select * from OrderDetails join [Order] on OrderDetails.IDOrder=[Order].IDOrder"
+////                    + " join Product on OrderDetails.IDProduct=Product.IDProduct Order by OrderDetails.IDOrder DESC");
+//                ps.setString(1, (String) cbTimKiemTK.getSelectedItem());
+//                rsInfoEmp = ps.executeQuery();
+//                if (rsInfoEmp.next()) {
+//                    b.write("Tên sản phẩm: " + rsInfoEmp.getString("ProductName") + "\r\n\r\n");
+//                }
+//            } catch (SQLException ex) {
+//                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+//            }
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+            b.write("\t\t\t\tMã HĐ\tTên SP\t\t\t\tĐơn giá (VNĐ)\tLoại SP\t\tSố lượng (ly)\r\n");
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+
+            int line = tblThongKe.getRowCount();
+            for (int i = 0; i < line; i++) {
+                String s1 = (String) tblThongKe.getValueAt(i, 0);
+                String s2 = (String) tblThongKe.getValueAt(i, 1);
+                String s3 = (String) tblThongKe.getValueAt(i, 2);
+                String s4 = (String) tblThongKe.getValueAt(i, 3);
+                String s5 = (String) tblThongKe.getValueAt(i, 4);
+                b.write("\t\t\t\t" + s1 + "\t" + s2 + "\t\t\t" + s3 + "\t\t" + s4 + "\t\t" + s5 + "\t" + "\r\n");
+            }
+            b.write("--------------------------------------------------------------------------------------------------------------------------------\r\n");
+            b.write("\t\t\t\t\t\t\t\t\t\t\t\tTổng số lượng: " + txtSoLuong.getText() + "\r\n\r\n");
+            b.write("\t\t\t\t\t\t\t\t\t\t\t\tTổng tiền: " + txtGia.getText() + "\tVNĐ");
+            b.close();
+        } catch (IOException | NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        //Mở file txt
+        Runtime run = Runtime.getRuntime();
+        try {
+            run.exec("notepad ThongKe.txt");
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, e);
+        }
+        btnResetActionPerformed(evt);
     }//GEN-LAST:event_btnPrintActionPerformed
 
     private void btnNgayActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNgayActionPerformed
-        
+        SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd");
+        String start = ft.format(txtStart.getDate());
+        String end = ft.format(txtdate1.getDate());
+        while (true) {
+            if (start.compareTo(end) >= 0) {
+                JOptionPane.showMessageDialog(null, "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+                return;
+            } else {
+                break;
+            }
+        }
+        tblThongKe.removeAll();
+        DefaultTableModel tblMD = new DefaultTableModel();
+        tblMD.addColumn("ID");
+        tblMD.addColumn("Tên");
+        tblMD.addColumn("Giá");
+        tblMD.addColumn("Loại");
+        tblMD.addColumn("Ngày");
+        tblThongKe.setModel(tblMD);
+        try {
+            psSPBan = con.prepareStatement("select o.IDProduct, p.Price,p.ProductName,p.IDType,a.DateOrder"
+                    + " from OrderDetails o join Products p on o.IDProduct=p.IDProduct"
+                    + "	join Orders a on a.IDOrder=o.IDOrder"
+                    + " where date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') >= '" + start + "'"
+                    + "  and date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') <= '" + end + "' order by date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') DESC");
+            rsSPBan = psSPBan.executeQuery();
+            if (rsSPBan.next()) {
+                psSPBan = con.prepareStatement("select o.IDProduct, p.Price,p.ProductName,p.IDType,a.DateOrder"
+                        + " from OrderDetails o join Products p on o.IDProduct=p.IDProduct"
+                        + "	join Orders a on a.IDOrder=o.IDOrder"
+                        + " where date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') >= '" + start + "'"
+                        + "  and date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') <= '" + end + "' order by date_format(STR_TO_DATE(a.DateOrder,'%d/%m/%Y'),'%Y/%m/%d') DESC");
+                rsSPBan = psSPBan.executeQuery();
+                while (rsSPBan.next()) {
+                    vecSPBan = new Vector();
+                    vecSPBan.add(rsSPBan.getString("IDProduct"));
+                    vecSPBan.add(rsSPBan.getString("ProductName"));
+                    vecSPBan.add(rsSPBan.getString("Price"));
+                    vecSPBan.add(rsSPBan.getString("IDType"));
+                    vecSPBan.add(rsSPBan.getString("DateOrder"));
+                    tblMD.addRow(vecSPBan);
+                }
+                tblThongKe.setModel(tblMD);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi:: Không thể kết nối đến SQL");
+        }
+        txtGia.setText("");
+        txtSoLuong.setText("");
+        btnPrint.setVisible(false);
     }//GEN-LAST:event_btnNgayActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

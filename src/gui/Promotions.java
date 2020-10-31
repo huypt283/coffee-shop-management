@@ -8,8 +8,13 @@ package gui;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Vector;
 import javax.swing.ImageIcon;
+import javax.swing.JOptionPane;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -24,6 +29,7 @@ public class Promotions extends javax.swing.JFrame {
     PreparedStatement ps;
     DefaultTableModel tblModel;
     server.DBHelper db = new server.DBHelper();
+    SimpleDateFormat ft = new SimpleDateFormat("yyyy/MM/dd");
 
     public Promotions() {
         initComponents();
@@ -51,6 +57,7 @@ public class Promotions extends javax.swing.JFrame {
         tblModel.addColumn("Ngày kết thúc");
         tblModel.addColumn("Mô tả");
         tblPromo.setModel(tblModel);
+        reloadTbl();
         btnResetActionPerformed(null);
     }
 
@@ -287,7 +294,67 @@ public class Promotions extends javax.swing.JFrame {
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddActionPerformed
-        
+        String name = txtName.getText().replaceAll("\\s+", " ");
+        String descript = txtDescription.getText();
+        String start = ft.format(DateStart.getDate());
+        String end = ft.format(DateEnd.getDate());
+        while (true) {
+            if (name.trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Tên chương trình không được bỏ trống.");
+                txtName.grabFocus();
+                return;
+            } else if (name.length() > 50) {
+                JOptionPane.showMessageDialog(null, "Độ dài tối đa của tên chương trình là 50 ký tự.");
+                txtName.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (txtDis.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Chiết khấu không được bỏ trống.");
+                txtDis.grabFocus();
+                return;
+            } else if (!txtDis.getText().trim().matches("[0-9]+") || Integer.parseInt(txtDis.getText().trim()) > 100) {
+                JOptionPane.showMessageDialog(null, "Chiết khấu phải là số nguyên dương và <= 100.");
+                txtDis.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (start.compareTo(end) >= 0) {
+                JOptionPane.showMessageDialog(null, "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (descript.trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Mô tả chương trình không được bỏ trống.");
+                txtDescription.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        try {
+            ps = con.prepareStatement("Insert into Promotions(NamePromo,DiscountPromo,StartPromo,EndPromo,Description) values(?,?,?,?,?)");
+            ps.setString(1, name);
+            ps.setInt(2, Integer.parseInt(txtDis.getText().trim()));
+            ps.setString(3, start);
+            ps.setString(4, end);
+            ps.setString(5, txtDescription.getText());
+            ps.executeUpdate();
+            JOptionPane.showMessageDialog(null, "Thêm chương trình khuyến mãi thành công.");
+            reloadTbl();
+            btnResetActionPerformed(evt);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnAddActionPerformed
 
     private void tblPromoMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_tblPromoMouseClicked
@@ -297,16 +364,106 @@ public class Promotions extends javax.swing.JFrame {
         txtName.setEnabled(false);
         lbID.setVisible(true);
         lbID1.setVisible(true);
-        
+        try {
+            int line = tblPromo.getSelectedRow();
+            Date start = ft.parse((String) tblPromo.getValueAt(line, 3));
+            Date end = ft.parse((String) tblPromo.getValueAt(line, 4));
+            txtName.setText((String) tblPromo.getValueAt(line, 1));
+            txtDis.setText((String) tblPromo.getValueAt(line, 2));
+            lbID.setText((String) tblPromo.getValueAt(line, 0));
+            txtDescription.setText((String) tblPromo.getValueAt(line, 5));
+            DateStart.setDate(start);
+            DateEnd.setDate(end);
+        } catch (ParseException ex) {
+        }
     }//GEN-LAST:event_tblPromoMouseClicked
 
     private void btnUpdateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUpdateActionPerformed
-        
+        String descript = txtDescription.getText();
+        String start = ft.format(DateStart.getDate());
+        String end = ft.format(DateEnd.getDate());
+        while (true) {
+            if (txtDis.getText().trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Chiết khấu không được bỏ trống.");
+                txtDis.grabFocus();
+                return;
+            } else if (!txtDis.getText().trim().matches("[0-9]+") || Integer.parseInt(txtDis.getText().trim()) > 100) {
+                JOptionPane.showMessageDialog(null, "Chiết khấu phải là số nguyên và nhỏ hơn 100.");
+                txtDis.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (start.compareTo(end) >= 0) {
+                JOptionPane.showMessageDialog(null, "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.");
+                return;
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (descript.trim().equals("")) {
+                JOptionPane.showMessageDialog(null, "Mô tả chương trình không được bỏ trống.");
+                txtDescription.grabFocus();
+                return;
+            } else {
+                break;
+            }
+        }
+        try {
+            ps = con.prepareStatement("Update Promotions set DiscountPromo=?, StartPromo=?, EndPromo=?, Description=? where IDPromo=?");
+            ps.setString(1, txtDis.getText().trim());
+            ps.setString(2, start);
+            ps.setString(3, end);
+            ps.setString(4, txtDescription.getText());
+            ps.setInt(5, Integer.parseInt(lbID.getText()));
+            ps.executeUpdate();
+            JOptionPane.showMessageDialog(null, "Cập nhật chương trình thành công.");
+            reloadTbl();
+            btnResetActionPerformed(evt);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnUpdateActionPerformed
 
     private void btnDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn có chắc chắn xóa chương trình này?");
+        if (click == 0) {
+            try {
+                ps = con.prepareStatement("Delete from Promotions where IDPromo=?");
+                ps.setInt(1, Integer.parseInt(lbID.getText()));
+                ps.executeUpdate();
+                JOptionPane.showMessageDialog(null, "Xóa chương trình thành công.");
+                reloadTbl();
+                btnResetActionPerformed(evt);
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_btnDelActionPerformed
+
+    private void reloadTbl() {
+        tblModel.getDataVector().removeAllElements();
+        try {
+            ps = con.prepareStatement("Select * from Promotions");
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                row = new Vector();
+                row.add(rs.getString(1));
+                row.add(rs.getString(2));
+                row.add(rs.getString(3));
+                row.add(rs.getString(4));
+                row.add(rs.getString(5));
+                row.add(rs.getString(6));
+                tblModel.addRow(row);
+            }
+            tblPromo.setModel(tblModel);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private com.toedter.calendar.JDateChooser DateEnd;

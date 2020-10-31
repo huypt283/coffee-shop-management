@@ -471,7 +471,117 @@ public class Customer extends javax.swing.JFrame {
     }//GEN-LAST:event_btnResetActionPerformed
 
     private void btnAddActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddActionPerformed
-        
+        while (true) {
+            if (txtCMND.getText().trim().equals("")) {
+                lbLoiCMND.setText("Số thẻ căn cước/CMND không được bỏ trống.");
+                txtCMND.grabFocus();
+                return;
+            } else if (!txtCMND.getText().trim().matches("[0-9]+") || txtCMND.getText().trim().length() > 12 || txtCMND.getText().trim().length() < 9) {
+                lbLoiCMND.setText("Số thẻ căn cước/CMND gồm 9-12 số.");
+                txtCMND.grabFocus();
+                return;
+            } else {
+                lbLoiCMND.setText("");
+                break;
+            }
+        }
+        try {
+            ps = con.prepareStatement("select * from Customers where IdentityCard=?");
+            ps.setString(1, txtCMND.getText());
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                lbLoiCMND.setText("");
+                lbLoiName.setText("");
+                lbLoiSDT.setText("");
+                lbLoiEmail.setText("");
+                txtName.setEnabled(false);
+                txtCMND.setEnabled(false);
+                txtPhone.setEnabled(true);
+                txtEmail.setEnabled(true);
+                txtCMND.setText(rs.getString(2));
+                txtName.setText(rs.getString(3));
+                txtPhone.setText(rs.getString(5));
+                txtEmail.setText(rs.getString(6));
+
+                lbID.setText(rs.getString(1));
+                lbDate.setText(rs.getString(4));
+                lbQuantity.setText(rs.getString(7) + " ly");
+                lbDis.setText(rs.getString(8) + "%");
+
+                btnAdd.setEnabled(false);
+                btnUpdate.setEnabled(true);
+                btnDel.setEnabled(true);
+                pnInfomation.setVisible(true);
+            } else {
+                txtCMND.setEnabled(true);
+                txtName.setEnabled(true);
+                txtPhone.setEnabled(true);
+                txtEmail.setEnabled(true);
+                String Name = txtName.getText().replaceAll("\\s+", " ");
+                while (true) {
+                    if (txtName.getText().trim().equals("")) {
+                        lbLoiName.setText("Họ và tên không được bỏ trống.");
+                        txtName.grabFocus();
+                        return;
+                    } else if (Name.length() > 30) {
+                        lbLoiName.setText("Họ và tên chứa tối đa 30 kí tự.");
+                        txtName.grabFocus();
+                        return;
+                    } else {
+                        lbLoiName.setText("");
+                        break;
+                    }
+                }
+                while (true) {
+                    if (txtPhone.getText().trim().equals("")) {
+                        lbLoiSDT.setText("SĐT không được bỏ trống.");
+                        txtPhone.grabFocus();
+                        return;
+                    } else if (txtPhone.getText().trim().length() > 11 || txtPhone.getText().trim().length() < 10) {
+                        lbLoiSDT.setText("SĐT chứa từ 10-11 số.");
+                        txtPhone.grabFocus();
+                        return;
+                    } else if (!txtPhone.getText().trim().matches("0[1-9]{1}\\d{8,9}")) {
+                        lbLoiSDT.setText("SĐT chưa đúng định dạng.");
+                        txtPhone.grabFocus();
+                        return;
+                    } else {
+                        lbLoiSDT.setText("");
+                        break;
+                    }
+                }
+                while (true) {
+                    if (txtEmail.getText().trim().equals("")) {
+                        lbLoiEmail.setText("Email không được bỏ trống.");
+                        txtEmail.grabFocus();
+                        return;
+                    } else if (!txtEmail.getText().trim().matches("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@" + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")) {
+                        lbLoiEmail.setText("Email chưa đúng định dạng.");
+                        txtEmail.grabFocus();
+                        return;
+                    } else {
+                        lbLoiEmail.setText("");
+                        break;
+                    }
+                }
+                ps = con.prepareStatement("Insert into Customers(IdentityCard,CusName,DateAdd,Phone,Email,Quantity,Discount) values(?,?,date_format(now(),'%d/%m/%Y'),?,?,?,?)");
+                ps.setString(1, txtCMND.getText().trim());
+                ps.setString(2, Name);
+                ps.setString(3, txtPhone.getText().trim());
+                ps.setString(4, txtEmail.getText().trim());
+                ps.setInt(5, 0);
+                ps.setInt(6, 0);
+                if (ps.executeUpdate() > 0) {
+                    JOptionPane.showMessageDialog(null, "Thêm thành viên thành công.");
+                    btnAddActionPerformed(evt);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Thêm thành viên thất bại.");
+                }
+                reloadTable();
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnAddActionPerformed
 
     private void RdOnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_RdOnActionPerformed
@@ -483,11 +593,75 @@ public class Customer extends javax.swing.JFrame {
     }//GEN-LAST:event_RdOffActionPerformed
 
     private void btnUpdateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUpdateActionPerformed
-        
+        while (true) {
+            if (txtPhone.getText().trim().equals("")) {
+                lbLoiSDT.setText("SĐT không được bỏ trống.");
+                txtPhone.grabFocus();
+                return;
+            } else if (txtPhone.getText().trim().length() > 11 || txtPhone.getText().trim().length() < 10) {
+                lbLoiSDT.setText("SĐT chứa từ 10-11 số.");
+                txtPhone.grabFocus();
+                return;
+            } else if (!txtPhone.getText().trim().matches("0[1-9]{1}\\d{8,9}")) {
+                lbLoiSDT.setText("SĐT chưa đúng định dạng.");
+                txtPhone.grabFocus();
+                return;
+            } else {
+                lbLoiSDT.setText("");
+                break;
+            }
+        }
+        while (true) {
+            if (txtEmail.getText().trim().equals("")) {
+                lbLoiEmail.setText("Email không được bỏ trống.");
+                txtEmail.grabFocus();
+                return;
+            } else if (!txtEmail.getText().trim().matches("^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@" + "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$")) {
+                lbLoiEmail.setText("Email chưa đúng định dạng.");
+                txtEmail.grabFocus();
+                return;
+            } else {
+                lbLoiEmail.setText("");
+                break;
+            }
+        }
+        try {
+            ps = con.prepareStatement("Update Customers set Phone=?,Email=? where IDCus=?");
+            ps.setString(1, txtPhone.getText().trim());
+            ps.setString(2, txtEmail.getText().trim());
+            ps.setString(3, lbID.getText());
+            if (ps.executeUpdate() > 0) {
+                JOptionPane.showMessageDialog(null, "Cập nhật thành viên thành công.");
+                txtCMND.setEnabled(false);
+                txtName.setEnabled(false);
+                txtPhone.setEnabled(true);
+                txtEmail.setEnabled(true);
+            } else {
+                JOptionPane.showMessageDialog(null, "Cập nhật thành viên thất bại.");
+            }
+            reloadTable();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+        }
     }//GEN-LAST:event_btnUpdateActionPerformed
 
     private void btnDelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnDelActionPerformed
-        
+        int click = JOptionPane.showConfirmDialog(null, "Bạn chắc chắn xóa thành viên này?");
+        if (click == 0) {
+            try {
+                ps = con.prepareStatement("Delete from Customers where IDCus=?");
+                ps.setString(1, lbID.getText());
+                if (ps.executeUpdate() > 0) {
+                    JOptionPane.showMessageDialog(null, "Xóa thành viên thành công.");
+                    btnResetActionPerformed(evt);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Xóa thành viên thất bại.");
+                }
+                reloadTable();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(null, "Lỗi 101:: Không thể kết nối đến máy chủ");
+            }
+        }
     }//GEN-LAST:event_btnDelActionPerformed
 
 
